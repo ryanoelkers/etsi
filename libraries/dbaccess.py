@@ -123,21 +123,21 @@ class DBaccess:
         cur = conn.cursor()
 
         if os.path.isfile(out_path + file_name) == 1:
-            Utils.log("Legacy file found, not querying TICv7.", "info", Configuration.LOG_SCREEN)
+            Utils.log("Legacy file found, not querying TICv7.", "info")
             # read in from a file
             df = pd.read_csv(out_path + file_name, index_col=0)
-            Utils.log("CSV read complete.", "info", Configuration.LOG_SCREEN)
+            Utils.log("CSV read complete.", "info")
 
         if os.path.isfile(out_path + file_name) == 0:
-            Utils.log("Querying TICv7...", "info", Configuration.LOG_SCREEN)
+            Utils.log("Querying TICv7...", "info")
             # generate the data frame with the queried results
             df = pd.read_sql_query(sql_cmd, conn)
 
-            Utils.log("Query complete, dumping to .csv file " + out_path + file_name, "info", Configuration.LOG_SCREEN)
+            Utils.log("Query complete, dumping to .csv file " + out_path + file_name, "info")
             # dump the file to csv
             df.to_csv(out_path + file_name)
 
-            Utils.log("Dump complete.", "info", Configuration.LOG_SCREEN)
+            Utils.log("Dump complete.", "info")
 
         # convert the pk name to a TICID
         df = df.rename(columns={'pk': 'TICID'})
