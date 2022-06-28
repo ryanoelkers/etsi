@@ -95,7 +95,7 @@ class Clean:
         # bias subtract if necessary
         if bias_subtract == 'Y':
             st = time.time()
-            bias = Preprocessing.mk_bias(Configuration.BIAS_DIRECTORY, dark='N')
+            bias = Preprocessing.mk_bias(Configuration.BIAS_DIRECTORY, dark='N', combine_type='median')
             img, header = Preprocessing.bias_subtract(img, header, dark='N')
             fn = time.time()
             Utils.log("Image bias corrected in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
@@ -105,7 +105,7 @@ class Clean:
         # dark subtract if necessary
         if dark_subtract == 'Y':
             st = time.time()
-            dark = Preprocessing.mk_bias(Configuration.DARKS_DIRECTORY, dark='Y')
+            dark = Preprocessing.mk_bias(Configuration.DARKS_DIRECTORY, dark='Y', combine_type='median')
             img, header = Preprocessing.bias_subtract(img, header, dark='Y')
             fn = time.time()
             Utils.log("Image dark corrected in " + str(np.around((fn - st), decimals=2)) + "s.", "info")

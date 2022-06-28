@@ -12,18 +12,54 @@ import scipy
 import scipy.ndimage
 from scipy.interpolate import Rbf
 from scipy.interpolate import griddata
-from scipy.interpolate import interpn
-import matplotlib
-matplotlib.use('TkAgg')
-import matplotlib.pyplot as plt
+import astroalign as aa
+
 
 class Preprocessing:
 
     @staticmethod
-    def mk_bias(image_directory, dark="N"):
+    def calibrate_to_start(img0, img, og_list):
+        """ This function will calibrate the current image in the real time pipeline to the first image
+
+        :parameter img0 - The first image to be observed
+        :parameter img - The current image in the set
+        :parameter og_list - The list of the OG pixel positions
+
+        :return star_list - The updated star positions based on the first frame's data
+        """
+
+        # set up the coordinate list for the new image
+        src = list()
+        star_list = og_list.copy().reset_index(drop=True)
+
+        for idy, row in star_list.iterrows():
+            ppair = (row.x, row.y)
+            src.append(ppair)
+
+        src = np.array(src)
+        star_list = star_list.copy().reset_index(drop=True)
+        # set up the image transformation
+        try:
+            # get the transformation offset between the frames
+            img_transf, (i0_list, i1_list) = aa.find_transform(img0, img, min_area=50, max_control_points=5)
+            img_calc = aa.matrix_transform(src, img_transf.params)
+
+            # update the star list with the positions
+            star_list['x'] = img_calc[:, 0]
+            star_list['y'] = img_calc[:, 1]
+
+            return star_list
+        except aa.MaxIterError:
+            return og_list
+        except ValueError:
+            return og_list
+
+    @staticmethod
+    def mk_bias(image_directory, dark="N", combine_type='median'):
         """ This function will make the master bias frame using the provided image list.
         :parameter image_directory - a directory where the images reside for combination
         :parameter dark - if the file being generated is a dark, update the name
+        :parameter combine_type - Either median or mean depending on how you want to combine the files
 
         :return - The bias frame is returned and written to the master directory
         """
@@ -35,85 +71,126 @@ class Preprocessing:
 
         if os.path.isfile(Configuration.MASTER_DIRECTORY + file_name) == 0:
 
-            # get the image list
-            image_list = Utils.get_file_list(image_directory, Configuration.FILE_EXTENSIONENSION)
+            if combine_type == 'median':
+                # get the image list
+                image_list = Utils.get_file_list(image_directory, Configuration.FILE_EXTENSION)
 
-            # determine the number of loops we need to move through for each image
-            nfiles = len(image_list)
-            nbulk = 20
+                # determine the number of loops we need to move through for each image
+                nfiles = len(image_list)
+                nbulk = 10
 
-            # get the integer and remainder for the combination
-            full_bulk = nfiles // nbulk
-            part_bulk = nfiles % nbulk
-            if part_bulk > 0:
-                hold_bulk = full_bulk + 1
-            else:
-                hold_bulk = full_bulk
-
-            # here is the 'holder'
-            hold_data = np.ndarray(shape=(hold_bulk, Configuration.AXS_X, Configuration.AXS_Y))
-
-            # update the log
-            Utils.log("Generating a master bias/dark frame from multiple files in bulks of " + str(nbulk) +
-                      " images. There are " + str(nfiles) + " images to combine, which means there should be " +
-                      str(hold_bulk) + " mini-files to combine.", "info")
-
-            for kk in range(0, hold_bulk):
-
-                # loop through the images in sets of nbulk
-                if kk < full_bulk:
-                    # generate the image holder
-                    block_hold = np.ndarray(shape=(nbulk, Configuration.AXS_X, Configuration.AXS_Y))
-
-                    # generate the max index
-                    mx_index = nbulk
+                # get the integer and remainder for the combination
+                full_bulk = nfiles // nbulk
+                part_bulk = nfiles % nbulk
+                if part_bulk > 0:
+                    hold_bulk = full_bulk + 1
                 else:
-                    # generate the image holder
-                    block_hold = np.ndarray(shape=(part_bulk, Configuration.AXS_X, Configuration.AXS_Y))
+                    hold_bulk = full_bulk
 
-                    # generate the max index
-                    mx_index = part_bulk
+                # here is the 'holder'
+                hold_data = np.ndarray(shape=(hold_bulk, Configuration.AXS_X, Configuration.AXS_Y))
 
-                # make the starting index
-                loop_start = kk * nbulk
-                idx_cnt = 0
+                # update the log
+                Utils.log("Generating a master bias/dark frame from multiple files in bulks of " + str(nbulk) +
+                          " images. There are " + str(nfiles) + " images to combine, which means there should be " +
+                          str(hold_bulk) + " mini-files to combine.", "info")
 
-                Utils.log("Making mini-bias/dark file " + str(kk) + ".", "info")
+                for kk in range(0, hold_bulk):
 
-                # now loop through the images
-                for jj in range(loop_start, mx_index + loop_start):
-                    # read in the image directly into the block_hold
-                    if dark == 'Y':
-                        bias_tmp = fits.getdata(Configuration.DARKS_DIRECTORY + image_list[jj])
+                    # loop through the images in sets of nbulk
+                    if kk < full_bulk:
+                        # generate the image holder
+                        block_hold = np.ndarray(shape=(nbulk, Configuration.AXS_X, Configuration.AXS_Y))
+
+                        # generate the max index
+                        mx_index = nbulk
                     else:
-                        bias_tmp = fits.getdata(Configuration.BIAS_DIRECTORY + image_list[jj])
+                        # generate the image holder
+                        block_hold = np.ndarray(shape=(part_bulk, Configuration.AXS_X, Configuration.AXS_Y))
 
-                    if np.ndim(bias_tmp) > 2:
-                        bias_tmp = bias_tmp[0]
+                        # generate the max index
+                        mx_index = part_bulk
 
-                    block_hold[idx_cnt] = bias_tmp
+                    # make the starting index
+                    loop_start = kk * nbulk
+                    idx_cnt = 0
 
-                    # increase the iteration
-                    idx_cnt += 1
+                    Utils.log("Making mini-bias/dark file " + str(kk) + ".", "info")
 
-                # median the data into a single file
-                hold_data[kk] = np.median(block_hold, axis=0)
+                    # now loop through the images
+                    for jj in range(loop_start, mx_index + loop_start):
+                        # read in the image directly into the block_hold
+                        if dark == 'Y':
+                            bias_tmp = fits.getdata(Configuration.DARKS_DIRECTORY + image_list[jj])
+                        else:
+                            bias_tmp = fits.getdata(Configuration.BIAS_DIRECTORY + image_list[jj])
 
-            # median the mini-images into one large image
-            bias_image = np.median(hold_data, axis=0)
+                        if np.ndim(bias_tmp) > 2:
+                            bias_tmp = bias_tmp[0]
 
-            # pull the header information from the first file of the set
-            if dark == 'Y':
-                bias_header = fits.getheader(Configuration.DARKS_DIRECTORY + image_list[0])
+                        block_hold[idx_cnt] = bias_tmp
+
+                        # increase the iteration
+                        idx_cnt += 1
+
+                    # median the data into a single file
+                    hold_data[kk] = np.median(block_hold, axis=0)
+
+                # median the mini-images into one large image
+                bias_image = np.median(hold_data, axis=0)
+
+                # pull the header information from the first file of the set
+                if dark == 'Y':
+                    bias_header = fits.getheader(Configuration.DARKS_DIRECTORY + image_list[0])
+                else:
+                    bias_header = fits.getheader(Configuration.BIAS_DIRECTORY + image_list[0])
+                bias_header['BIAS_COMB'] = 'median'
+                bias_header['NUM_BIAS'] = nfiles
+                bias_header["BIASSUB"] = 'Y'
+
+                # write the image out to the master directory
+                fits.writeto(Configuration.MASTER_DIRECTORY + file_name,
+                             bias_image, bias_header, overwrite=True)
             else:
-                bias_header = fits.getheader(Configuration.BIAS_DIRECTORY + image_list[0])
-            bias_header['BIAS_COMB'] = 'median'
-            bias_header['NUM_BIAS'] = nfiles
-            bias_header["BIASSUB"] = 'Y'
+                # get the image list
+                image_list = Utils.get_file_list(image_directory, Configuration.FILE_EXTENSION)
 
-            # write the image out to the master directory
-            fits.writeto(Configuration.MASTER_DIRECTORY + file_name,
-                         bias_image, bias_header, overwrite=True)
+                # determine the number of loops we need to move through for each image
+                nfiles = len(image_list)
+
+                # update the log
+                Utils.log("Generating a master bias/dark frame from multiple files using a mean combination. There are "
+                          + str(nfiles) + " images to combine.", "info")
+
+                for kk in range(0, nfiles):
+                    # read in the bias frame
+                    if dark == 'Y':
+                        bias_tmp = fits.getdata(Configuration.DARKS_DIRECTORY + image_list[kk])
+                    else:
+                        bias_tmp = fits.getdata(Configuration.BIAS_DIRECTORY + image_list[kk])
+
+                    # initialize if it's the first file, otherwise....
+                    if kk == 0:
+                        bias_image = bias_tmp
+                    else:
+                        bias_image = bias_image + bias_tmp
+
+                # generate the mean bias file
+                bias_image = bias_image / nfiles
+
+                # pull the header information from the first file of the set
+                if dark == 'Y':
+                    bias_header = fits.getheader(Configuration.DARKS_DIRECTORY + image_list[kk])
+                else:
+                    bias_header = fits.getheader(Configuration.BIAS_DIRECTORY + image_list[kk])
+
+                bias_header['BIAS_COMB'] = 'mean'
+                bias_header['NUM_BIAS'] = nfiles
+                bias_header["BIASSUB"] = 'Y'
+
+                # write the image out to the master directory
+                fits.writeto(Configuration.MASTER_DIRECTORY + file_name,
+                             bias_image, bias_header, overwrite=True)
         else:
             bias_image = fits.getdata(Configuration.MASTER_DIRECTORY + file_name, 0)
 
@@ -311,7 +388,7 @@ class Preprocessing:
         if sky_write == 'Y':
             fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'sky_background.fits', res, overwrite=True)
             fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img.fits', img, overwrite=True)
-            fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img_sub.fits', img_sub, overwrite=True)
+            fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img_sub.fits', fin_img, overwrite=True)
 
         return fin_img, header
 

@@ -4,110 +4,114 @@
 class Configuration:
 
     # Computer for reduction
-    MACHINE = 'thoroslab'
-    FILE_EXTENSION = '.fits'
+    MACHINE = 'barristan'
 
-    # update for different data products
-    STAR = 'WASP3b'
-    RA = 278.6333
-    DEC = 35.6617
-    TC = 2454143.851120
-    PERIOD = 1.846835100
-    PHOTOMETRY = 'APER'
-    APERTURE_SHAPE = 'ellipse'
+    # calibration steps to skip
+    BIAS_SUBTRACT = 'Y'
+    DARK_SUBTRACT = 'N'
+    FLAT_DIVIDE ='N'
+    SKY_SUBTRACT = 'N'
+    ALIGNMENT = 'N'
+    CUT_IMAGE = 'N'
 
-    # steps to skip
+    # major steps to skip
     CLEAN_SKIP = 'Y'
     WRITE_SKY = 'N'
-    CALIBRATE_SKIP = 'Y'
-    PHOTOMETRY_SKIP = 'Y'
+    PHOTOMETRY_SKIP = 'N'
     LIGHTCURVE_SKIP = 'Y'
-    COLOR_SKIP = 'N'
+    COLOR_SKIP = 'Y'
 
-    # get image information
-    AXS_X = 1676
-    AXS_Y = 1266
-    AXS = 2048
-    GAIN = 0.38  # in e-/ADU
-    FOV = 5  # size of the image in arc minutes
-    SEARCH_DIST = FOV / 60.0
+    # stellar parameters
+    STAR = 'HAT-P-44'
+    RA = 213.1438604
+    DEC = 47.0147826
+    TC = 2455696.93695
+    PERIOD = 4.301219
+
+    # observation & image specific parameters
+    EXPOSURE_TIME = 10.
+    AXIS_X = 2048
+    AXIS_Y = 2048
+    AXS_X = 2048
+    AXS_Y = 2048
+    PIX = 128
+    GAIN = 0.61  # in e-/ADU
+    FILE_EXTENSION = '.fits'
+
+    # photometry parameters
+    PHOTOMETRY = 'PSF'
+    APERTURE_SHAPE = 'ellipse'
+    TIME = 'phase'
 
     # rough size of PSF for star finding and clip functions, also avoidance for edge
-    SIGMA_PSF = 7
-    PSF_X = 41
-    PSF_Y = 21
-    PSF_EDGE_LIMIT = 100
-    PSF_BUFFER = 0
-
-    # update sky subtraction specific information
-    PIX_BOX = 128
-    PIX = 32
-
-    # update the image axes to work for the a PIX_BOX setting
-    X_CUT = int(AXS_X % PIX_BOX)  # work to make it divisible by a PIX x PIX box
-    Y_CUT = int(AXS_Y % PIX_BOX)
-    X_CENT = int(AXS_X / 2)  # get the center with respect to the old image
-    Y_CENT = int(AXS_Y / 2)
-    AXIS_X = int(AXS_X - X_CUT) # get the size of the new image
-    AXIS_Y = int(AXS_Y - Y_CUT)
-
-    # if the image is divisible by the box, then don't worry
-    if (Y_CUT != 0) | (X_CUT != 0):
-        CUT_IMAGE = 'Y'
-    else:
-        CUT_IMAGE = 'N'
+    SIGMA_PSF = 10
+    PSF_THRESHOLD = 500
+    PSF_X = 40
+    PSF_Y = 25
+    PSF_CUTOUT = 80
 
     # a photometry configuration
-    FWHM = 15.  # fwhm of the image
+    FWHM = 10.  # fwhm of the image
     THRESHOLD = 5.  # the threshold for a source above the background
 
     # aperture information
-    CIRC_APER_SIZE = 32  # circular aperture
-    ELIP_APER_A = 20
-    ELIP_APER_B = 10
-    RECT_APER_H = 20  # rectangular aperture y size
-    RECT_APER_W = 40  # rectangular aperture x size
+    ELIP_APER_A = 40
+    ELIP_APER_B = 25
 
     # aperture annulus for the sky background automatically determined from the main aperture
-    CIRC_ANNULI_INNER = CIRC_APER_SIZE + 2
-    CIRC_ANNULI_OUTER = CIRC_APER_SIZE + 4
-
-    RECT_ANNULI_H0 = RECT_APER_H + 2
-    RECT_ANNULI_HN = RECT_APER_H + 4
-    RECT_ANNULI_W0 = RECT_APER_W + 2
-    RECT_ANNULI_WN = RECT_APER_W + 4
-
     ELIP_ANNULI_A0 = ELIP_APER_A + 2
     ELIP_ANNULI_AN = ELIP_APER_A + 4
     ELIP_ANNULI_B0 = ELIP_APER_B + 2
     ELIP_ANNULI_BN = ELIP_APER_B + 4
 
-    # ETSI PSF separations
-    FOOT_PRINT = 40
-    NUM_PSF = 4
-    ST1 = 0.
-    ST2 = ST1 + 50.
-    ST3 = ST1 + 120.
-    ST4 = ST1 + 200.
+    # PSF information (transmitted band passes)
+    NUM_PSF_TRANSMISSION = 8
+    PSF1_TRANSMISSION = 0
+    PSF2_TRANSMISSION = PSF1_TRANSMISSION + 80
+    PSF3_TRANSMISSION = PSF1_TRANSMISSION + 160
+    PSF4_TRANSMISSION = PSF1_TRANSMISSION + 250
+    PSF5_TRANSMISSION = PSF1_TRANSMISSION + 340
+    PSF6_TRANSMISSION = PSF1_TRANSMISSION + 430
+    PSF7_TRANSMISSION = PSF1_TRANSMISSION + 530
+    PSF8_TRANSMISSION = PSF1_TRANSMISSION + 630
+    PSFS_TRANSMISSION = [PSF1_TRANSMISSION, PSF2_TRANSMISSION, PSF3_TRANSMISSION, PSF4_TRANSMISSION,
+                         PSF5_TRANSMISSION, PSF6_TRANSMISSION, PSF7_TRANSMISSION, PSF8_TRANSMISSION]
+    WAVELENGTHS_TRANSMISSION = ['937nm', '763nm', '660nm', '587nm', '533nm', '494nm', '467nm', '435nm']
+
+    # PSF information (reflected band passes)
+    NUM_PSF_REFLECTION = 7
+    PSF1_REFLECTION = 0
+    PSF2_REFLECTION = PSF1_REFLECTION + 85
+    PSF3_REFLECTION = PSF1_REFLECTION + 170
+    PSF4_REFLECTION = PSF1_REFLECTION + 255
+    PSF5_REFLECTION = PSF1_REFLECTION + 340
+    PSF6_REFLECTION = PSF1_REFLECTION + 425
+    PSF7_REFLECTION = PSF1_REFLECTION + 510
+
+    PSFS_REFLECTION = [PSF1_REFLECTION, PSF2_REFLECTION, PSF3_REFLECTION, PSF4_REFLECTION,
+                       PSF5_REFLECTION, PSF6_REFLECTION, PSF7_REFLECTION]
+    WAVELENGTHS_REFLECTION = ['448nm', '476nm', '512nm', '559nm', '620nm', '713nm', '873nm']
 
     # output paths for logging, temporary files, figures etc
-    WORKING_DIRECTORY = "C:\\Users\\astrolab\\Development\\etsi\\"
+    WORKING_DIRECTORY = "C:\\Users\\barristan\\Development\\etsi\\"
     ANALYSIS_DIRECTORY = WORKING_DIRECTORY + 'analysis\\'
     LOG_DIRECTORY = WORKING_DIRECTORY + 'logs\\'
     QUERIES_DIRECTORY = WORKING_DIRECTORY + 'queries\\'
 
     # input paths for data etc
-    DATA_DIRECTORY = "F:\\WASP3b\\data\\"
-    DARKS_DIRECTORY = DATA_DIRECTORY + "darks\\"
-    BIAS_DIRECTORY = DATA_DIRECTORY + "bias\\"
-    FLATS_DIRECTORY = DATA_DIRECTORY + "flats\\"
+    DATA_DIRECTORY = "C:\\Users\\barristan\\Documents\\ETSI\\data\\" + STAR + "\\"
+    CALIBRATION_DIRECTORY = "C:\\Users\\barristan\\Documents\\ETSI\\data\\"
+
+    # directories to be generated in the reduction
+    DARKS_DIRECTORY = CALIBRATION_DIRECTORY + "darks\\"
+    BIAS_DIRECTORY = CALIBRATION_DIRECTORY + "bias\\bias_split\\"
+    FLATS_DIRECTORY = CALIBRATION_DIRECTORY + "flats\\"
     RAW_DIRECTORY = DATA_DIRECTORY + "raw\\"
     CLEAN_DIRECTORY = DATA_DIRECTORY + "clean\\"
-    MASTER_DIRECTORY = DATA_DIRECTORY + "master\\"
-    CENTROID_DIRECTORY = MASTER_DIRECTORY + "centroids\\"
     LIGHTCURVE_DIRECTORY = DATA_DIRECTORY + "lc\\"
+    MASTER_DIRECTORY = DATA_DIRECTORY + "master\\"
 
     # directory_list
     DIRECTORIES = [ANALYSIS_DIRECTORY, DATA_DIRECTORY, LOG_DIRECTORY,
-                   QUERIES_DIRECTORY, CLEAN_DIRECTORY, MASTER_DIRECTORY, LIGHTCURVE_DIRECTORY,
-                   CENTROID_DIRECTORY, RAW_DIRECTORY, FLATS_DIRECTORY, BIAS_DIRECTORY, DARKS_DIRECTORY]
+                   QUERIES_DIRECTORY, CLEAN_DIRECTORY, LIGHTCURVE_DIRECTORY,
+                   RAW_DIRECTORY, FLATS_DIRECTORY, BIAS_DIRECTORY, DARKS_DIRECTORY, MASTER_DIRECTORY]
