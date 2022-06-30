@@ -18,12 +18,13 @@ import astroalign as aa
 class Preprocessing:
 
     @staticmethod
-    def calibrate_to_start(img0, img, og_list):
+    def calibrate_to_start(img0, img, og_list, pv_list):
         """ This function will calibrate the current image in the real time pipeline to the first image
 
         :parameter img0 - The first image to be observed
         :parameter img - The current image in the set
         :parameter og_list - The list of the OG pixel positions
+        :parameter pv_list - The previous list of positions
 
         :return star_list - The updated star positions based on the first frame's data
         """
@@ -41,7 +42,8 @@ class Preprocessing:
         # set up the image transformation
         try:
             # get the transformation offset between the frames
-            img_transf, (i0_list, i1_list) = aa.find_transform(img0, img, min_area=50, max_control_points=5)
+            img_transf, (i0_list, i1_list) = aa.find_transform(img0, img, max_control_points=50,
+                                                               detection_sigma=10, min_area=200)
             img_calc = aa.matrix_transform(src, img_transf.params)
 
             # update the star list with the positions
@@ -50,9 +52,9 @@ class Preprocessing:
 
             return star_list
         except aa.MaxIterError:
-            return og_list
+            return pv_list
         except ValueError:
-            return og_list
+            return pv_list
 
     @staticmethod
     def mk_bias(image_directory, dark="N", combine_type='median'):

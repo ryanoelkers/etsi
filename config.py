@@ -9,10 +9,11 @@ class Configuration:
     # calibration steps to skip
     BIAS_SUBTRACT = 'Y'
     DARK_SUBTRACT = 'N'
-    FLAT_DIVIDE ='N'
-    SKY_SUBTRACT = 'N'
+    FLAT_DIVIDE = 'N'
+    SKY_SUBTRACT = 'Y'
     ALIGNMENT = 'N'
     CUT_IMAGE = 'N'
+    NUM_MASTER_FILES = 100
 
     # major steps to skip
     CLEAN_SKIP = 'Y'
@@ -22,7 +23,7 @@ class Configuration:
     COLOR_SKIP = 'Y'
 
     # stellar parameters
-    STAR = 'HAT-P-44'
+    STAR = 'XO-1'
     RA = 213.1438604
     DEC = 47.0147826
     TC = 2455696.93695
@@ -42,6 +43,7 @@ class Configuration:
     PHOTOMETRY = 'PSF'
     APERTURE_SHAPE = 'ellipse'
     TIME = 'phase'
+    BEAM_TYPE = 'transmission'
 
     # rough size of PSF for star finding and clip functions, also avoidance for edge
     SIGMA_PSF = 10
@@ -92,6 +94,11 @@ class Configuration:
                        PSF5_REFLECTION, PSF6_REFLECTION, PSF7_REFLECTION]
     WAVELENGTHS_REFLECTION = ['448nm', '476nm', '512nm', '559nm', '620nm', '713nm', '873nm']
 
+    if BEAM_TYPE == 'transmission':
+        NUM_PSF = NUM_PSF_TRANSMISSION
+    else:
+        NUM_PSF = NUM_PSF_REFLECTION
+
     # output paths for logging, temporary files, figures etc
     WORKING_DIRECTORY = "C:\\Users\\barristan\\Development\\etsi\\"
     ANALYSIS_DIRECTORY = WORKING_DIRECTORY + 'analysis\\'
@@ -99,14 +106,14 @@ class Configuration:
     QUERIES_DIRECTORY = WORKING_DIRECTORY + 'queries\\'
 
     # input paths for data etc
-    DATA_DIRECTORY = "C:\\Users\\barristan\\Documents\\ETSI\\data\\" + STAR + "\\"
-    CALIBRATION_DIRECTORY = "C:\\Users\\barristan\\Documents\\ETSI\\data\\"
+    DATA_DIRECTORY = "F:\\ETSI_June2022\\2022-06-22\\" + STAR + "\\"
+    CALIBRATION_DIRECTORY = "F:\\ETSI_June2022\\2022-06-22\\"
 
     # directories to be generated in the reduction
     DARKS_DIRECTORY = CALIBRATION_DIRECTORY + "darks\\"
-    BIAS_DIRECTORY = CALIBRATION_DIRECTORY + "bias\\bias_split\\"
+    BIAS_DIRECTORY = CALIBRATION_DIRECTORY + "Bias-12bit\\"
     FLATS_DIRECTORY = CALIBRATION_DIRECTORY + "flats\\"
-    RAW_DIRECTORY = DATA_DIRECTORY + "raw\\"
+    RAW_DIRECTORY = DATA_DIRECTORY + "raw\\" + BEAM_TYPE + "\\"
     CLEAN_DIRECTORY = DATA_DIRECTORY + "clean\\"
     LIGHTCURVE_DIRECTORY = DATA_DIRECTORY + "lc\\"
     MASTER_DIRECTORY = DATA_DIRECTORY + "master\\"

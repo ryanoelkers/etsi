@@ -86,7 +86,7 @@ class Utils:
         file_list = [f for f in os.listdir(path) if f.endswith(file_ext)]
 
         # sort based on the number of the image, first taken image will be first
-        file_list.sort(key=len)
+        file_list.sort()
 
         return file_list
 
