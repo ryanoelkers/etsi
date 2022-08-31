@@ -8,7 +8,10 @@ Utils.create_directories(Configuration.DIRECTORIES)
 
 # generate the PSF if needed
 Utils.log("Generating PSF for " + Configuration.STAR, "info")
-epsf = Master.generate_master_files(Configuration.RAW_DIRECTORY, Configuration.NUM_MASTER_FILES)
+if Configuration.MASTER_TYPE == 'normal':
+    epsf = Master.generate_master_files(Configuration.RAW_DIRECTORY, Configuration.NUM_MASTER_FILES)
+else:
+    epsf = Master.generate_coadds(Configuration.COADD_DIRECTORY)
 
 # generate the photometry if needed
 Utils.log("Starting Photometry for " + Configuration.STAR, "info")

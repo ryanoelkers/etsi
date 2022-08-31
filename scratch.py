@@ -1,8 +1,175 @@
+for idy, m in enumerate(mg):
+    dt = {"xx": s[pos_x[idy]].to_numpy(), "yy": s[pos_y[idy]].to_numpy()}
+    trnds = pd.DataFrame(dt)
+    if (idy == 1) | (idy == 2) | (idy == 3) | (idy == 4):  ## | (idy == 5) | (idy == 6):
+
+        for idx, file in enumerate(files):
+            if idx == 0:
+                continue
+            else:
+                tr = pd.read_csv(Configuration.LIGHTCURVE_DIRECTORY + file, sep=' ', header=0)
+                tr = tr.interpolate()
+                tr['time_min'] = tr.apply(lambda x: (x.jd - tr.jd[0]) * 24. * 60., axis=1)
+                # tr = tr[(tr.time_min < 13) | (tr.time_min > 31)].copy().reset_index(drop=True)
+                # if s[m].corr(tr[m]) > 0.6:
+                trnds['c' + str(idx)] = tr[m].to_numpy()
+        # trnds['cc'] = s['mag_' + phot_type + '']
+        # trnds = trnds.drop(columns=['xx', 'yy'])
+        yhat = s[m].to_numpy()
+        reg = LinearRegression().fit(trnds, yhat)
+        trend = reg.predict(trnds)
+
+        s[m] = s[m] - (trend - np.median(trend))
+        s_bin = s.groupby('binned').agg({m: 'median', mg[1]: 'median'}).reset_index()
+        er_bin = s.groupby('binned').agg({m: 'std', 'time_min': 'count'}).reset_index()
+
+        plt.subplot(2, 1, 1)
+        plt.errorbar(s_bin.binned, s_bin[m] - s_bin[m].median(), yerr=er_bin[m] / np.sqrt(er_bin.time_min),
+                     fmt='none', c=clr[idy])
+        plt.scatter(s_bin.binned, s_bin[m] - s_bin[m].median(), label=Configuration.WAVELENGTHS_TRANSMISSION[idy],
+                    marker='o', c=clr[idy])
+        plt.xlabel('Time from Observation Start [mins]')
+        plt.ylabel('Relative Magnitude')
+        plt.legend()
+        # plt.ylim([0.03, -0.03])
+        # plt.gca().invert_yaxis()
+
+        plt.subplot(2, 1, 2)
+        s['clr'] = s[m] - s[mg[1]]
+        s_bin = s.groupby('binned').agg({'clr': 'median'}).reset_index()
+        er_bin = s.groupby('binned').agg({'clr': 'std', 'time_min': 'count'}).reset_index()
+        plt.errorbar(s_bin.binned, s_bin['clr'] - s_bin['clr'].median(),
+                     yerr=er_bin['clr'] / np.sqrt(er_bin.time_min),
+                     fmt='none', c=clr[idy])
+        plt.scatter(s_bin.binned, s_bin['clr'] - s_bin['clr'].median(),
+                    label=Configuration.WAVELENGTHS_TRANSMISSION[idy],
+                    marker='o', c=clr[idy])
+        plt.xlabel('Time from Observation Start [mins]')
+        plt.ylabel('Relative Color [$\lambda$ - 763nm]')
+        # plt.ylim([0.03, -0.03])
+plt.gca().invert_yaxis()
+plt.show()
+
+
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from config import Configuration
+from libraries.utils import Utils
+
+
+def custom_round(x, base=10):
+    return int(base * round(float(x)/base))
+
+if Configuration.STAR == 'XO-1':
+    mg = ['mag_p1', 'mag_p2', 'mag_p3', 'mag_p4', 'mag_p5', 'mag_p6', 'mag_p7', 'mag_p8']
+    pos_x = ['x_p1', 'x_p2', 'x_p3', 'x_p4', 'x_p5', 'x_p6', 'x_p7', 'x_p8']
+    pos_y = ['y_p1', 'y_p2', 'y_p3', 'y_p4', 'y_p5', 'y_p6', 'y_p7', 'y_p8']
+
+    clr = ['red', 'salmon', 'darkorange', 'gold', 'green', 'dodgerblue', 'blue', 'purple']
+
+    s = pd.read_csv("F:\\ETSI_June2022\\2022-06-09\\T\\lc\\raw\\XO-1_transmission_00.lc", sep=' ',
+                    header=0)
+    s['time_min'] = s.apply(lambda x: (x.jd - s.jd[0]) * 24. * 60., axis=1)
+    s['binned'] = s.apply(lambda x: custom_round(x.time_min), axis=1)
+    s = s.interpolate()
+    s = s[s.time_min < 400].copy().reset_index(drop=True)
+    s17 = s.copy().reset_index()
+
+    for idy, m in enumerate(mg):
+        if idy < 5:
+            dt = {"xx": s[pos_x[idy]].to_numpy(), "yy": s[pos_y[idy]].to_numpy()}
+            trnds = pd.DataFrame(dt)
+
+            tr = pd.read_csv("F:\\ETSI_June2022\\2022-06-17\\XO-1\\lc\\raw\\XO-1_transmission_01.lc",
+                             sep=' ', header=0)
+            tr['time_min'] = tr.apply(lambda x: (x.jd - tr.jd[0]) * 24. * 60., axis=1)
+            tr = tr[tr.time_min < 400].copy().reset_index(drop=True)
+            tr = tr.interpolate()
+            trnds['c'] = tr[m].to_numpy()
+
+            # trnds = trnds.drop(columns=['xx', 'yy'])
+            yhat = s[m].to_numpy()
+            reg = LinearRegression().fit(trnds, yhat)
+            trend = reg.predict(trnds)
+
+            s17[m] = s[m] - (trend - np.median(trend))
+
+    # plt.subplot(2, 1, 1)
+    for idy, m in enumerate(mg):
+        if idy < 5:
+            plt.subplot(2, 1, 1)
+            s17_bin = s17.groupby('binned').agg({m: 'median'}).reset_index()
+            er17_bin = s17.groupby('binned').agg({m: 'std', 'time_min': 'count'}).reset_index()
+
+            plt.scatter(s17_bin['binned'], s17_bin[m] - s17_bin[m].median()+.01, c=clr[idy],
+                        label=Configuration.WAVELENGTHS_TRANSMISSION[idy], marker='o')
+            plt.errorbar(s17_bin['binned'], s17_bin[m] - s17_bin[m].median()+.01, yerr=er17_bin[m]/er17_bin['time_min'],
+                         c=clr[idy], marker='o', fmt='none')
+
+            plt.xlabel('Time from initial exposure [min]')
+            plt.ylabel('Relative Magnitude')
+            plt.legend()
+            plt.ylim([0.04, -0.02])
+
+    for idy, m in enumerate(mg):
+        if idy < 5:
+            plt.subplot(2, 1, 2)
+            s17['clr'] = (s17[m]-s17[m].median()) - (s17[mg[2]]-s17[mg[2]].median())
+            s_bin = s17.groupby('binned').agg({'clr': 'median'}).reset_index()
+            er_bin = s17.groupby('binned').agg({'clr': 'std', 'time_min': 'count'}).reset_index()
+            plt.errorbar(s_bin.binned, s_bin['clr'] - s_bin['clr'].median(),
+                         yerr=er_bin['clr'] / np.sqrt(er_bin.time_min),
+                         fmt='none', c=clr[idy])
+            plt.scatter(s_bin.binned, s_bin['clr'] - s_bin['clr'].median(),
+                        label=Configuration.WAVELENGTHS_TRANSMISSION[idy],
+                        marker='.', c=clr[idy])
+            plt.xlabel('Time from Observation Start [mins]')
+            plt.ylabel('Relative Color [$\lambda$ - 660nm, mag]')
+            plt.ylim([0.01, -0.01])
+            plt.legend()
+plt.show()
+
+if Configuration.STAR == 'NGC6886':
+    s_bin = s[mg].agg({'median', 'std', 'count'})
+
+    plt.subplot(2, 1, 1)
+    plt.errorbar(Configuration.WAVELENGTHS_TRANSMISSION_NUMS, s_bin.loc['median'].to_numpy()-s_bin.loc['median'][1],
+                 yerr=s_bin.loc['std'].to_numpy()/s_bin.loc['count'].to_numpy(), fmt='none', color='k')
+    plt.scatter(Configuration.WAVELENGTHS_TRANSMISSION_NUMS,
+                s_bin.loc['median'].to_numpy()-s_bin.loc['median'][1], color='k')
+    plt.xlabel('Wavelength [nm]')
+    plt.ylabel('Relative Color [$\lambda$ - 763nm, mag]')
+    plt.legend()
+    plt.gca().invert_yaxis()
+
+    for idy, m in enumerate(mg):
+        # if (idy == 1) | (idy == 2) | (idy == 3) | (idy == 4) | (idy == 5):
+        plt.subplot(2, 1, 2)
+        s['clr'] = s[m] - s[mg[1]]
+        s_bin = s.groupby('binned').agg({'clr': 'median'}).reset_index()
+        er_bin = s.groupby('binned').agg({'clr': 'std', 'time_min': 'count'}).reset_index()
+        plt.errorbar(s_bin.binned, s_bin['clr'] - s_bin['clr'].median(),
+                     yerr=er_bin['clr'] / np.sqrt(er_bin.time_min),
+                     fmt='none', c=clr[idy])
+        plt.scatter(s_bin.binned, s_bin['clr'] - s_bin['clr'].median(),
+                    label=Configuration.WAVELENGTHS_TRANSMISSION[idy],
+                    marker='.', c=clr[idy])
+        plt.xlabel('Time from Observation Start [mins]')
+        plt.ylabel('Relative Color [$\lambda$ - 763nm, mag]')
+        plt.ylim([0.004, -0.004])
+        plt.legend()
+    plt.show()
+
+
 """ This set of functions is primarily used for photometery."""
 from config import Configuration
 import pandas as pd
 import numpy as np
 import warnings
+
+
 from sklearn.linear_model import LinearRegression
 from scipy.signal import savgol_filter
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -15,6 +182,55 @@ import matplotlib.pyplot as plt
 import logging
 logging.getLogger('matplotlib.font_manager').disabled = True
 
+
+files = Utils.get_file_list(Configuration.LIGHTCURVE_DIRECTORY, '.lc')
+
+nfiles = len(files)
+ntrnds = len(files) - 1
+
+s = pd.read_csv(Configuration.LIGHTCURVE_DIRECTORY + files[0], sep=' ', header=0)
+s['time_min'] = np.arange(98) * 1.34  # s.apply(lambda x: (x.jd - s.jd[0]) * 24. * 60., axis=1)
+s['binned'] = s.apply(lambda x: custom_round(x.time_min), axis=1)
+s = s.interpolate()
+# s = s[(s.time_min < 13) | (s.time_min > 31)].copy().reset_index(drop=True)
+
+mg = ['mag_p1', 'mag_p2', 'mag_p3', 'mag_p4', 'mag_p5', 'mag_p6', 'mag_p7', 'mag_p8']
+pos_x = ['x_p1', 'x_p2', 'x_p3', 'x_p4', 'x_p5', 'x_p6', 'x_p7', 'x_p8']
+pos_y = ['y_p1', 'y_p2', 'y_p3', 'y_p4', 'y_p5', 'y_p6', 'y_p7', 'y_p8']
+
+clr = ['red', 'salmon', 'darkorange', 'gold', 'green', 'dodgerblue', 'blue', 'purple']
+
+for idy, m in enumerate(mg):
+    dt = {"xx": s[pos_x[idy]].to_numpy(), "yy": s[pos_y[idy]].to_numpy()}
+    trnds = pd.DataFrame(dt)
+
+    for idx, file in enumerate(files):
+        if idx == 0:
+            continue
+        else:
+            tr = pd.read_csv(Configuration.LIGHTCURVE_DIRECTORY + file, sep=' ', header=0)
+            tr = tr.interpolate()
+            # tr['time_min'] = tr.apply(lambda x: (x.jd - tr.jd[0]) * 24. * 60., axis=1)
+            # tr = tr[(tr.time_min < 13) | (tr.time_min > 31)].copy().reset_index(drop=True)
+            trnds['c' + str(idx)] = tr[m].to_numpy()
+    trnds = trnds.drop(columns=['xx', 'yy'])
+    yhat = s[m].to_numpy()
+    reg = LinearRegression().fit(trnds, yhat)
+    trend = reg.predict(trnds)
+
+    s[m] = s[m] - (trend - np.median(trend))
+
+
+def custom_round(x, base=10):
+    return int(base * round(float(x)/base))
+
+date = '2022-06-17'
+s22 = pd.read_csv("F:\\ETSI_June2022\\" + date + "\\XO-1\\lc\\raw\\og_bkg\\XO-1_transmission_00.lc", sep=' ', header=0)
+c22 = pd.read_csv("F:\\ETSI_June2022\\" + date + "\\XO-1\\lc\\raw\\og_bkg\\XO-1_transmission_01.lc", sep=' ', header=0)
+
+date = '2022-06-17'
+s17 = pd.read_csv("F:\\ETSI_June2022\\" + date + "\\XO-1\\lc\\raw\\XO-1_transmission_00.lc", sep=' ', header=0)
+c17 = pd.read_csv("F:\\ETSI_June2022\\" + date + "\\XO-1\\lc\\raw\\XO-1_transmission_01.lc", sep=' ', header=0)
 
 class Lightcurves:
 

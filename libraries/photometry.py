@@ -8,11 +8,11 @@ from astropy import time
 from dateutil import parser
 from photutils.centroids import centroid_sources, centroid_2dg
 from photutils import aperture_photometry
-from photutils.detection import find_peaks
+from photutils.detection import find_peaks, IRAFStarFinder
 from photutils import EllipticalAperture, EllipticalAnnulus
-from photutils.psf import DAOGroup, BasicPSFPhotometry, extract_stars, EPSFBuilder
-from photutils.background import MMMBackground
-from astropy.modeling.fitting import LevMarLSQFitter
+from photutils.psf import DAOGroup, BasicPSFPhotometry, extract_stars, EPSFBuilder, IterativelySubtractedPSFPhotometry
+from photutils.background import MMMBackground, MADStdBackgroundRMS
+from astropy.modeling.fitting import LevMarLSQFitter, LinearLSQFitter
 from astropy.stats import gaussian_sigma_to_fwhm, sigma_clipped_stats
 from astropy.table import Table
 from astropy.nddata import NDData
@@ -21,7 +21,7 @@ import pandas as pd
 import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=Warning)
-
+import matplotlib.pyplot as plt
 
 class Photometry:
 
@@ -77,8 +77,14 @@ class Photometry:
         """
 
         # get the master frame
-        img = fits.getdata(image_directory + Configuration.STAR + "_" + Configuration.BEAM_TYPE + '_master.fits')
-
+        file_list = Utils.get_file_list(image_directory, '.fits')
+        # img = fits.getdata(Configuration.STAR + "_" + Configuration.BEAM_TYPE + '_master.fits')
+        img, header, bd_flag = Clean.clean_img(file_list[0], image_directory,
+                                               Configuration.SKY_SUBTRACT,
+                                               Configuration.BIAS_SUBTRACT,
+                                               Configuration.FLAT_DIVIDE,
+                                               Configuration.ALIGNMENT,
+                                               Configuration.DARK_SUBTRACT)
         if find_stars == 'Y':
             # get the PSF peaks on the image
             peaks_tbl = find_peaks(img, threshold=Configuration.PSF_THRESHOLD)
@@ -106,13 +112,19 @@ class Photometry:
             stars_tbl['y'] = star_list['y'].to_numpy()
 
         nddata = NDData(data=img)
-        stars = extract_stars(nddata, stars_tbl, size=Configuration.PSF_CUTOUT)
+        stars = extract_stars(nddata, stars_tbl, size=(61, 81))
 
-        epsf_builder = EPSFBuilder(maxiters=3, progress_bar=True, oversampling=1)
+        epsf_builder = EPSFBuilder(maxiters=1,
+                                   progress_bar=True,
+                                   oversampling=1,
+                                   shape=(61, 81),
+                                   recentering_boxsize=(5, 7),
+                                   smoothing_kernel='quartic')
         epsf, fitted_stars = epsf_builder(stars)
 
         #import matplotlib.pyplot as plt
         #from astropy.visualization import simple_norm
+
         #norm = simple_norm(epsf.data, 'log', percent=99.)
         #plt.imshow(epsf.data, norm=norm, origin='lower', cmap='viridis')
         #plt.colorbar()
@@ -130,12 +142,15 @@ class Photometry:
         """
 
         # get the centroids based on the initial xy_list
-        x_cen, y_cen = centroid_sources(img, star_list.x.to_numpy(), star_list.y.to_numpy(),
-                                        box_size=[Configuration.ELIP_APER_B + 2, Configuration.ELIP_APER_A + 4],
-                                        centroid_func=centroid_2dg)
-        star_list = pd.DataFrame(data=zip(x_cen, y_cen), columns=['x', 'y'])
+        try:
+            x_cen, y_cen = centroid_sources(img, star_list.x.to_numpy(), star_list.y.to_numpy(),
+                                            box_size=[Configuration.ELIP_APER_B + 2, Configuration.ELIP_APER_A + 4],
+                                            centroid_func=centroid_2dg)
+            star_list = pd.DataFrame(data=zip(x_cen, y_cen), columns=['x', 'y'])
+            return star_list
+        except ValueError:
+            return star_list
 
-        return star_list
 
     @staticmethod
     def psf_photometry(epsf, img, header, star_list, num_psf):
@@ -151,21 +166,48 @@ class Photometry:
 
         # set up the functions to use for the PSF photometry
         daogroup = DAOGroup(2.0 * Configuration.SIGMA_PSF * gaussian_sigma_to_fwhm)
+        bkgrms = MADStdBackgroundRMS()
+        std = bkgrms(img)
         mmm_bkg = MMMBackground()
+        iraffind = IRAFStarFinder(threshold=3.5 * std,
+                                  fwhm=Configuration.SIGMA_PSF * gaussian_sigma_to_fwhm,
+                                  minsep_fwhm=0.01, roundhi=5.0, roundlo=-5.0,
+                                  sharplo=0.0, sharphi=2.0)
 
         # convert the star list to the necessary format
         pos = Table(names=['x_0', 'y_0'], data=[star_list['x'].to_numpy(), star_list['y'].to_numpy()])
 
         # do the PSF photometry
-        photometry = BasicPSFPhotometry(group_maker=daogroup,
-                                        bkg_estimator=mmm_bkg,
-                                        psf_model=epsf,
-                                        fitter=LevMarLSQFitter(),
-                                        fitshape=(Configuration.PSF_CUTOUT - 1, Configuration.PSF_CUTOUT - 1))
-
+        if Configuration.BKG_FULL_REMOVE == 'Y':
+            # photometry = IterativelySubtractedPSFPhotometry(group_maker=daogroup,
+            #                                                bkg_estimator=None,
+            #                                                psf_model=epsf,
+            #                                                fitter=LevMarLSQFitter(),
+            #                                                finder=iraffind,
+            #                                                niters=3,
+            #                                                fitshape=(Configuration.PSF_CUTOUT - 1,
+            #                                                          Configuration.PSF_CUTOUT - 1))
+            photometry = BasicPSFPhotometry(group_maker=daogroup,
+                                            bkg_estimator=None,
+                                            psf_model=epsf,
+                                            fitter=LevMarLSQFitter(),
+                                            fitshape=(61, 81))
+        else:
+            photometry = BasicPSFPhotometry(group_maker=daogroup,
+                                            bkg_estimator=mmm_bkg,
+                                            psf_model=epsf,
+                                            fitter=LevMarLSQFitter(),
+                                            fitshape=(Configuration.PSF_CUTOUT - 1, Configuration.PSF_CUTOUT - 1))
         # generate a table of results
         phot_table = photometry(image=img, init_guesses=pos)
-
+        res_img = photometry.get_residual_image()
+        #plt.imshow(res_img, cmap='viridis', aspect=1,
+        #           interpolation='nearest', origin='lower')
+        #plt.title('Residual Image')
+        #plt.colorbar(orientation='horizontal', fraction=0.046, pad=0.04)
+        #plt.show()
+        fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'sky_background.fits', res_img, overwrite=True)
+        #fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img.fits', img, overwrite=True)
         # pull out the relevant photometry
         flx = np.array(phot_table['flux_fit'])
         try:
@@ -226,8 +268,11 @@ class Photometry:
         phot_table = aperture_photometry(img, apers, method='exact')
 
         # subtract the sky background to get the stellar flux
-        flx = np.array(phot_table['aperture_sum_0']) - \
-              ((phot_table['aperture_sum_1'] / aperture_annulus.area) * aperture.area)
+        if Configuration.BKG_FULL_REMOVE == 'Y':
+            flx = np.array(phot_table['aperture_sum_0'])
+        else:
+            flx = np.array(phot_table['aperture_sum_0']) - \
+                  ((phot_table['aperture_sum_1'] / aperture_annulus.area) * aperture.area)
 
         # calculate the expected photometric error
         flx_e = np.sqrt(np.array(phot_table['aperture_sum_0']) * Configuration.GAIN)
@@ -264,18 +309,30 @@ class Photometry:
 
         Utils.log("Performing PSF and Aperture photometry on " + Configuration.STAR + " images.", "info")
         # get the file list for the photometry
-        files = Utils.get_file_list(Configuration.RAW_DIRECTORY, Configuration.FILE_EXTENSION)
-
+        if Configuration.MASTER_TYPE == 'normal':
+            files = Utils.get_file_list(Configuration.RAW_DIRECTORY, Configuration.FILE_EXTENSION)
+        else:
+            files = Utils.get_file_list(Configuration.COADD_DIRECTORY, Configuration.FILE_EXTENSION)
         # loop through each image
         for idx, file in enumerate(files):
             # read in the image and get the observation time
-            img, header, bd_flag = Clean.clean_img(file,
-                                                   Configuration.RAW_DIRECTORY,
-                                                   Configuration.SKY_SUBTRACT,
-                                                   Configuration.BIAS_SUBTRACT,
-                                                   Configuration.FLAT_DIVIDE,
-                                                   Configuration.ALIGNMENT,
-                                                   Configuration.DARK_SUBTRACT)
+            if Configuration.MASTER_TYPE == 'normal':
+                img_dirs = Configuration.RAW_DIRECTORY
+                img, header, bd_flag = Clean.clean_img(file,
+                                                       img_dirs,
+                                                       Configuration.SKY_SUBTRACT,
+                                                       Configuration.BIAS_SUBTRACT,
+                                                       Configuration.FLAT_DIVIDE,
+                                                       Configuration.ALIGNMENT,
+                                                       Configuration.DARK_SUBTRACT)
+            else:
+                img_dirs = Configuration.COADD_DIRECTORY
+                img, header, bd_flag = Clean.clean_img(file, img_dirs,
+                                                       'N',
+                                                       'N',
+                                                       Configuration.FLAT_DIVIDE,
+                                                       Configuration.ALIGNMENT,
+                                                       Configuration.DARK_SUBTRACT)
             jd = time.Time(parser.parse(header['DATE-OBS'])).jd
 
             # get the stars from the handpicked centroids
@@ -284,8 +341,22 @@ class Photometry:
                 og_star_list = pd.read_csv(Configuration.MASTER_DIRECTORY + Configuration.BEAM_TYPE + '_star_list.txt',
                                            delimiter=' ', names=['x', 'y'])
                 # save the reference image for later
-                ref_img = fits.getdata(Configuration.MASTER_DIRECTORY +
-                                       Configuration.STAR + '_' + Configuration.BEAM_TYPE + '_master.fits')
+                # ref_img = fits.getdata(Configuration.MASTER_DIRECTORY +
+                #                       Configuration.STAR + '_' + Configuration.BEAM_TYPE + '_master.fits')
+                if Configuration.MASTER_TYPE == 'normal':
+                    ref_img, ref_header, bd_flag = Clean.clean_img(files[0], img_dirs,
+                                                                   Configuration.SKY_SUBTRACT,
+                                                                   Configuration.BIAS_SUBTRACT,
+                                                                   Configuration.FLAT_DIVIDE,
+                                                                   Configuration.ALIGNMENT,
+                                                                   Configuration.DARK_SUBTRACT)
+                else:
+                    ref_img, ref_header, bd_flag = Clean.clean_img(files[0], img_dirs,
+                                                                   'N',
+                                                                   'N',
+                                                                   Configuration.FLAT_DIVIDE,
+                                                                   Configuration.ALIGNMENT,
+                                                                   Configuration.DARK_SUBTRACT)
                 prv_list = og_star_list.copy().reset_index(drop=True)
 
             # get the updated PSF by forcing the position and get the new centroids
@@ -366,10 +437,10 @@ class Photometry:
                 line = line_st + ' ' + line_ed + '\n'
 
                 if idx == 0:
-                    Utils.write_txt(Configuration.LIGHTCURVE_DIRECTORY + 'raw\\' +
+                    Utils.write_txt(Configuration.LIGHTCURVE_DIRECTORY +
                                     Configuration.STAR + '_' + Configuration.BEAM_TYPE + '_' + star_id + '.lc',
                                     'w', line_header)
-                Utils.write_txt(Configuration.LIGHTCURVE_DIRECTORY + 'raw\\' +
+                Utils.write_txt(Configuration.LIGHTCURVE_DIRECTORY +
                                 Configuration.STAR + '_' + Configuration.BEAM_TYPE + '_' + star_id + '.lc',
                                 'a', line)
             if (idx % 100 == 0) & (idx > 0):

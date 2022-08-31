@@ -8,8 +8,9 @@ import os
 from astropy.io import fits
 import time
 import numpy as np
-
-
+from skimage import io
+from PIL.TiffTags import TAGS
+from PIL import Image
 class Clean:
 
     @staticmethod
@@ -88,7 +89,16 @@ class Clean:
         Utils.log("Now cleaning " + file + ".", "info")
 
         # read in the image
-        img, header = fits.getdata(Configuration.RAW_DIRECTORY + file, 0, header=True)
+        if Configuration.FILE_EXTENSION == '.fits':
+            img, header = fits.getdata(ref_path + file, 0, header=True)
+        else:
+            img = io.imread(ref_path + file)
+            # with Image.open(Configuration.RAW_DIRECTORY + file) as img:
+            #    timestampBOF = 4157647121
+            #    timestampResNs = 11200
+            #    finaltimestamp = 4157647121 * 11200
+            #    meta_dict = {TAGS[key]: img.tag[key] for key in img.tag.iterkeys()}
+            # print('hold')
         if np.ndim(img) > 2:
             img = img[0]
 

@@ -379,7 +379,10 @@ class Preprocessing:
 
         # subtract the sky gradient and add back the median background
         img_sub = img - res
-        fin_img = img_sub + sky_median
+        if Configuration.BKG_FULL_REMOVE == 'Y':
+            fin_img = img_sub
+        else:
+            fin_img = img_sub + sky_median
 
         # update the header
         header['sky_medn'] = sky_median
