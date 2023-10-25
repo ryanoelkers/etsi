@@ -2,7 +2,7 @@ from config import Configuration
 from libraries.utils import Utils
 import numpy as np
 import os
-from FITS_tools.hcongrid import hcongrid
+# from FITS_tools.hcongrid import hcongrid
 import astropy
 import astropy.stats
 from astropy.nddata.utils import Cutout2D
@@ -42,8 +42,8 @@ class Preprocessing:
         # set up the image transformation
         try:
             # get the transformation offset between the frames
-            img_transf, (i0_list, i1_list) = aa.find_transform(img0, img, max_control_points=50,
-                                                               detection_sigma=10, min_area=200)
+            img_transf, (i0_list, i1_list) = aa.find_transform(img0, img, max_control_points=5,
+                                                               detection_sigma=50, min_area=200)
             img_calc = aa.matrix_transform(src, img_transf.params)
 
             # update the star list with the positions
@@ -61,7 +61,7 @@ class Preprocessing:
         """ This function will make the master bias frame using the provided image list.
         :parameter image_directory - a directory where the images reside for combination
         :parameter dark - if the file being generated is a dark, update the name
-        :parameter combine_type - Either median or mean depending on how you want to combine the files
+        :parameter combine_type - Either coadd, median, or mean depending on how you want to combine the files
 
         :return - The bias frame is returned and written to the master directory
         """
@@ -79,76 +79,86 @@ class Preprocessing:
 
                 # determine the number of loops we need to move through for each image
                 nfiles = len(image_list)
-                nbulk = 10
-
-                # get the integer and remainder for the combination
-                full_bulk = nfiles // nbulk
-                part_bulk = nfiles % nbulk
-                if part_bulk > 0:
-                    hold_bulk = full_bulk + 1
-                else:
-                    hold_bulk = full_bulk
 
                 # here is the 'holder'
-                hold_data = np.ndarray(shape=(hold_bulk, Configuration.AXS_X, Configuration.AXS_Y))
+                hold_data = np.ndarray(shape=(nfiles, Configuration.AXIS_X, Configuration.AXIS_Y))
 
                 # update the log
-                Utils.log("Generating a master bias/dark frame from multiple files in bulks of " + str(nbulk) +
-                          " images. There are " + str(nfiles) + " images to combine, which means there should be " +
-                          str(hold_bulk) + " mini-files to combine.", "info")
+                Utils.log("Generating a master bias/dark frame with median combination. There are " + str(nfiles) +
+                          " images to combine.",
+                          "info")
 
-                for kk in range(0, hold_bulk):
-
-                    # loop through the images in sets of nbulk
-                    if kk < full_bulk:
-                        # generate the image holder
-                        block_hold = np.ndarray(shape=(nbulk, Configuration.AXS_X, Configuration.AXS_Y))
-
-                        # generate the max index
-                        mx_index = nbulk
+                # now loop through the images
+                for jj in range(0, nfiles):
+                    # read in the image directly into the block_hold
+                    if dark == 'Y':
+                        bias_tmp = fits.getdata(Configuration.DARKS_DIRECTORY + image_list[jj])
                     else:
-                        # generate the image holder
-                        block_hold = np.ndarray(shape=(part_bulk, Configuration.AXS_X, Configuration.AXS_Y))
+                        bias_tmp = fits.getdata(Configuration.BIAS_DIRECTORY + image_list[jj])
 
-                        # generate the max index
-                        mx_index = part_bulk
+                    if np.ndim(bias_tmp) > 2:
+                        bias_tmp = bias_tmp[0]
 
-                    # make the starting index
-                    loop_start = kk * nbulk
-                    idx_cnt = 0
-
-                    Utils.log("Making mini-bias/dark file " + str(kk) + ".", "info")
-
-                    # now loop through the images
-                    for jj in range(loop_start, mx_index + loop_start):
-                        # read in the image directly into the block_hold
-                        if dark == 'Y':
-                            bias_tmp = fits.getdata(Configuration.DARKS_DIRECTORY + image_list[jj])
-                        else:
-                            bias_tmp = fits.getdata(Configuration.BIAS_DIRECTORY + image_list[jj])
-
-                        if np.ndim(bias_tmp) > 2:
-                            bias_tmp = bias_tmp[0]
-
-                        block_hold[idx_cnt] = bias_tmp
-
-                        # increase the iteration
-                        idx_cnt += 1
-
-                    # median the data into a single file
-                    hold_data[kk] = np.median(block_hold, axis=0)
+                    hold_data[jj] = bias_tmp
 
                 # median the mini-images into one large image
                 bias_image = np.median(hold_data, axis=0)
+                std_image = np.std(hold_data, axis=0)
 
                 # pull the header information from the first file of the set
                 if dark == 'Y':
                     bias_header = fits.getheader(Configuration.DARKS_DIRECTORY + image_list[0])
                 else:
                     bias_header = fits.getheader(Configuration.BIAS_DIRECTORY + image_list[0])
+
                 bias_header['BIAS_COMB'] = 'median'
                 bias_header['NUM_BIAS'] = nfiles
                 bias_header["BIASSUB"] = 'Y'
+
+                # write the image out to the master directory
+                fits.writeto(Configuration.MASTER_DIRECTORY + file_name,
+                             bias_image, bias_header, overwrite=True)
+                fits.writeto(Configuration.MASTER_DIRECTORY + 'std_'+file_name,
+                             std_image, bias_header, overwrite=True)
+            elif combine_type == 'coadd':
+
+                num_combine = int(Configuration.BIN_TIME / Configuration.EXPOSURE_TIME)
+
+                # get the image list
+                image_list = Utils.get_file_list(image_directory, Configuration.FILE_EXTENSION)
+
+                # determine the number of loops we need to move through for each image
+                nfiles = len(image_list)
+
+                # update the log
+                Utils.log("Generating a master bias/dark frame with median combination. There are " + str(num_combine) +
+                          " images to co-add.",
+                          "info")
+
+                # now loop through the images
+                for jj in range(0, num_combine):
+                    # read in the image directly into the block_hold
+                    if dark == 'Y':
+                        bias_tmp = fits.getdata(Configuration.DARKS_DIRECTORY + image_list[jj])
+                    else:
+                        bias_tmp = fits.getdata(Configuration.BIAS_DIRECTORY + image_list[jj])
+
+                    if np.ndim(bias_tmp) > 2:
+                        bias_tmp = bias_tmp[0]
+
+                    if jj == 0:
+                        bias_image = bias_tmp
+                    else:
+                        bias_image = bias_image + bias_tmp
+
+                # pull the header information from the first file of the set
+                if dark == 'Y':
+                    bias_header = fits.getheader(Configuration.DARKS_DIRECTORY + image_list[0])
+                else:
+                    bias_header = fits.getheader(Configuration.BIAS_DIRECTORY + image_list[0])
+
+                bias_header['BIAS_COMB'] = 'coadd'
+                bias_header['NUM_BIAS'] = nfiles
 
                 # write the image out to the master directory
                 fits.writeto(Configuration.MASTER_DIRECTORY + file_name,
@@ -161,7 +171,7 @@ class Preprocessing:
                 nfiles = len(image_list)
 
                 # update the log
-                Utils.log("Generating a master bias/dark frame from multiple files using a mean combination. There are "
+                Utils.log("Generating a master bias/dark frame with mean combination. There are "
                           + str(nfiles) + " images to combine.", "info")
 
                 for kk in range(0, nfiles):
@@ -215,7 +225,7 @@ class Preprocessing:
             image_list = Utils.get_file_list(image_directory, '.fits')
 
             # here is the 'holder'
-            hold_data = np.zeros((Configuration.AXS_X, Configuration.AXS_Y))
+            hold_data = np.zeros((Configuration.AXIS_X, Configuration.AXIS_Y))
 
             Utils.log("Making the flat frame using a mean.", "info")
 
@@ -275,11 +285,10 @@ class Preprocessing:
         sze = int((Configuration.AXIS_X / Configuration.PIX) * (Configuration.AXIS_Y / Configuration.PIX) +
                   (Configuration.AXIS_X / Configuration.PIX) + (Configuration.AXIS_Y / Configuration.PIX) + 1)
 
-        # generate an empty matrix to hold the background
-        res = np.zeros(shape=(Configuration.AXIS_Y, Configuration.AXIS_X))
-
         # calculate the sky statistics
-        sky_mean, sky_median, sky_sig = astropy.stats.sigma_clipped_stats(img, sigma=2.5)
+        # sky_mean, sky_median, sky_sig = astropy.stats.sigma_clipped_stats(img, sigma=2.5)
+        sky_median = np.nanmedian(img)
+        sky_sig = np.nanstd(img)
 
         # create holder arrays for good and bad pixels
         x = np.zeros(shape=sze)
@@ -298,8 +307,10 @@ class Preprocessing:
                 c = img[jl:jh, il:ih]
 
                 # select the median value with clipping
-                lsky_mean, lsky, ssky = astropy.stats.sigma_clipped_stats(c, sigma=2.5)
-
+                # lsky_mean, lsky, ssky = astropy.stats.sigma_clipped_stats(c, sigma=2.5)
+                lsky_mean = np.nanmean(c)
+                lsky = np.nanmedian(c)
+                ssky = np.nanstd(c)
                 x[nd] = np.amin([jj, Configuration.AXIS_X - 1])  # determine the pixel to input
                 y[nd] = np.amin([kk, Configuration.AXIS_Y - 1])  # determine the pixel to input
                 v[nd] = lsky  # median sky
@@ -379,10 +390,11 @@ class Preprocessing:
 
         # subtract the sky gradient and add back the median background
         img_sub = img - res
-        if Configuration.BKG_FULL_REMOVE == 'Y':
-            fin_img = img_sub
-        else:
-            fin_img = img_sub + sky_median
+        img_sub = img_sub + sky_median
+
+        # attempt "flat-field"
+        flat = res / np.median(res)
+        img_flt = (img / flat) - res + sky_median
 
         # update the header
         header['sky_medn'] = sky_median
@@ -393,198 +405,9 @@ class Preprocessing:
         if sky_write == 'Y':
             fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'sky_background.fits', res, overwrite=True)
             fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img.fits', img, overwrite=True)
-            fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img_sub.fits', fin_img, overwrite=True)
-
-        return fin_img, header
-
-    @staticmethod
-    def sky_subtract_symmetric(img, header, sky_write='N'):
-        """  The function breaks the image into bxs x bxs sections to save memeory, then cleans each section
-        the sections are then recombined and smoothed to remove the transitions. The residual image is then subtracted
-        from the image and the header is updated appropriately.
-
-        :parameter img - The image to be cleaned
-        :parameter header - The header object to be updated
-        :parameter sky_write - Y/N if you want to write the residual background for de-bugging
-
-        :return img_sub, header - The cleaned image and updated header file
-        """
-
-        # use the sampling space to make the appropriate size vectors
-        lop = 2 * Configuration.PIX
-        sze = int((Configuration.BXS / Configuration.PIX) * (Configuration.BXS / Configuration.PIX) +
-                  2 * (Configuration.BXS / Configuration.PIX) + 1)  # size holder for later
-
-        # get the holders ready
-        res = np.zeros(shape=(Configuration.AXIS, Configuration.AXIS))  # background 'image'
-        bck = np.zeros(shape=(int((Configuration.AXIS / Configuration.BXS) ** 2)))  # image background
-        sbk = np.zeros(shape=(int((Configuration.AXIS / Configuration.BXS) ** 2)))  # sigma of the image background
-
-        # begin breaking up the image into bxs x bxs sections and search for sky in pix x pix boxes
-        tts = 0  # step vector for the captured sky background statistics
-        for oo in range(0, Configuration.AXIS, Configuration.BXS):
-            for ee in range(0, Configuration.AXIS, Configuration.BXS):
-                img_section = img[ee:ee + Configuration.BXS, oo:oo + Configuration.BXS]  # split the image into subsect
-
-                # calculate the sky statistics
-                sky_mean, sky_median, sky_sig = astropy.stats.sigma_clipped_stats(img_section, sigma=2.5)
-                bck[tts] = sky_median  # insert the image median background
-                sbk[tts] = sky_sig  # insert the image sigma background
-
-                # create holder arrays for good and bad pixels
-                x = np.zeros(shape=sze)
-                y = np.zeros(shape=sze)
-                v = np.zeros(shape=sze)
-                s = np.zeros(shape=sze)
-                nd = int(0)
-
-                # begin the sampling of the "local" sky value
-                for jj in range(0, Configuration.BXS + Configuration.PIX, Configuration.PIX):
-                    for kk in range(0, Configuration.BXS + Configuration.PIX, Configuration.PIX):
-                        il = np.amax([jj - lop, 0])
-                        ih = np.amin([jj + lop, Configuration.BXS - 1])
-                        jl = np.amax([kk - lop, 0])
-                        jh = np.amin([kk + lop, Configuration.BXS - 1])
-                        c = img_section[jl:jh, il:ih]
-
-                        # select the median value with clipping
-                        lsky_mean, lsky, ssky = astropy.stats.sigma_clipped_stats(c, sigma=2.5)
-
-                        x[nd] = np.amin([jj, Configuration.BXS - 1])  # determine the pixel to input
-                        y[nd] = np.amin([kk, Configuration.BXS - 1])  # determine the pixel to input
-                        v[nd] = lsky  # median sky
-                        s[nd] = ssky  # sigma sky
-                        nd = nd + 1
-
-                # now we want to remove any possible values which have bad sky values
-                rj = np.argwhere(v <= 0)  # stuff to remove
-                kp = np.argwhere(v > 0)  # stuff to keep
-
-                if len(rj) > 0:
-
-                    # keep only the good points
-                    xgood = x[kp]
-                    ygood = y[kp]
-                    vgood = v[kp]
-
-                    for jj in range(0, len(rj[0])):
-                        # select the bad point
-                        xbad = x[rj[jj]]
-                        ybad = y[rj[jj]]
-
-                        # use the distance formula to get the closest points
-                        rd = np.sqrt((xgood - xbad) ** 2. + (ygood - ybad) ** 2.)
-
-                        # sort the radii
-                        pp = sorted(range(len(rd)), key=lambda k: rd[k])
-
-                        # use the closest 10 points to get a median
-                        vnear = vgood[pp[0:9]]
-                        ave = np.median(vnear)
-
-                        # insert the good value into the array
-                        v[rj[jj]] = ave
-
-                # now we want to remove any possible values which have bad sigmas
-                rj = np.argwhere(s >= 2 * sky_sig)
-                kp = np.argwhere(s < 2 * sky_sig)
-
-                if len(rj) > 0:
-                    # keep only the good points
-                    xgood = np.array(x[kp])
-                    ygood = np.array(y[kp])
-                    vgood = np.array(v[kp])
-
-                    for jj in range(0, len(rj)):
-                        # select the bad point
-                        xbad = x[rj[jj]]
-                        ybad = y[rj[jj]]
-
-                        # use the distance formula to get the closest points
-                        rd = np.sqrt((xgood - xbad) ** 2. + (ygood - ybad) ** 2.)
-
-                        # sort the radii
-                        pp = sorted(range(len(rd)), key=lambda k: rd[k])
-
-                        # use the closest 10 points to get a median
-                        vnear = vgood[pp[0:9]]
-                        ave = np.median(vnear)
-                        if np.isfinite(ave) == 0:
-                            ave = np.median(v[np.isfinite(v)])
-
-                        # insert the good value into the array
-                        v[rj[jj]] = ave
-
-                # set up a meshgrid to interpolate to
-                xi = np.linspace(0, Configuration.BXS - 1, Configuration.BXS)
-                yi = np.linspace(0, Configuration.BXS - 1, Configuration.BXS)
-                xx, yy = np.meshgrid(xi, yi)
-
-                # remove any nan of inf values
-                if len(v[~np.isfinite(v)]) > 0:
-                    v[~np.isfinite(v)] = np.median(v[np.isfinite(v)])
-
-                # now we interpolate to the rest of the image with a thin-plate spline
-                rbf = Rbf(x, y, v, function='thin-plate', smooth=0.0)
-                reshld = rbf(xx, yy)
-
-                # now add the values to the residual image
-                res[ee:ee + Configuration.BXS, oo:oo + Configuration.BXS] = reshld
-                tts = tts + 1
-
-        # smooth the residual image by the pix x pix box
-        sky_back = scipy.ndimage.filters.gaussian_filter(res, [Configuration.PIX, Configuration.PIX], mode='nearest')
-
-        # subtract the sky gradient and add back the median background
-        img_sub = img - sky_back
-        fin_img = img_sub + np.median(bck)
-
-        # update the header
-        header['sky_medn'] = np.median(bck)
-        header['sky_sig'] = np.median(sbk)
-        header['sky_sub'] = 'yes'
-
-        # if desired, write out the sky background to the working directory
-        if sky_write == 'Y':
-            fits.writeto('sky_background.fits', sky_back, overwrite=True)
-            fits.writeto('sky_res.fits', res, overwrite=True)
-
-        return fin_img, header
-
-    @staticmethod
-    def align_img(img, header, ref_path):
-        """ This function will align to a refernce position
-        :parameter img - The image to flatten
-        :parameter header - The image header file
-        :parameter ref_path - The path to the reference iamge
-
-        :return align_img, header - The updated image and header """
-        # get the zeroth image for registration
-
-        # read in the image
-        ref, ref_header = fits.getdata(ref_path, header=True)
-
-        ref_header['CRPIX1'] = Configuration.CRPIX
-        ref_header['NAXIS1'] = Configuration.AXIS_X
-        ref_header['NAXIS2'] = Configuration.AXIS_Y
-
-        # align the image
-        align_img = hcongrid(img, header, ref_header)
-
-        # update the header
-        header['CTYPE1'] = ref_header['CTYPE1']
-        header['CTYPE2'] = ref_header['CTYPE2']
-        header['CRVAL1'] = ref_header['CRVAL1']
-        header['CRVAL2'] = ref_header['CRVAL2']
-        header['CRPIX1'] = ref_header['CRPIX1']
-        header['CRPIX2'] = ref_header['CRPIX2']
-        header['CD1_1'] = ref_header['CD1_1']
-        header['CD1_2'] = ref_header['CD1_2']
-        header['CD2_1'] = ref_header['CD2_1']
-        header['CD2_2'] = ref_header['CD2_2']
-        header['aligned'] = 'Y'
-
-        return align_img, header
+            fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img_sub.fits', img_sub, overwrite=True)
+            fits.writeto(Configuration.ANALYSIS_DIRECTORY + 'img_flt.fits', img_flt, overwrite=True)
+        return img_sub, header
 
     @staticmethod
     def bias_subtract(img, header, dark):
@@ -771,26 +594,3 @@ class Preprocessing:
                 file_name = nme_hld[0] + '_kfas' + Configuration.FILE_EXTENSION
 
         return file_name
-
-    @staticmethod
-    def remove_overscan(img, header):
-        """ This function will remove the over scan region from the images
-        :argument img - The np.array with the image
-        :argument header - The header object
-
-        :return cut_img, header - Return the new header and cut image"""
-
-        # pull out the wcs in the header
-        w = WCS(header)
-
-        # cut the image, but maintain the appropriate header information and positioning - X & Y need to be reversed
-        cut = Cutout2D(img, (Configuration.X_CENT, Configuration.Y_CENT),
-                       (Configuration.AXIS_Y, Configuration.AXIS_X), wcs=w)
-
-        # create a new image based on the cut data
-        cut_img = cut.data
-
-        # update the header
-        header['CLIPPED'] = 'Y'
-
-        return cut_img, header

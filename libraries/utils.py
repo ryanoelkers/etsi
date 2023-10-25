@@ -3,7 +3,7 @@
 from config import Configuration
 import logging
 import os
-import numpy as np
+
 
 class Utils:
 
@@ -83,10 +83,12 @@ class Utils:
         :return files_no_ext - A list of files without the extension."""
 
         # get the files in the given path directory with the given file extension
-        file_list = [f for f in os.listdir(path) if f.endswith(file_ext)]
+        file_list_ext = [f for f in os.listdir(path) if f.endswith(file_ext)]
 
         # sort based on the number of the image, first taken image will be first
-        file_list.sort()
+        files = [path + file for file in file_list_ext]
+        files.sort(key=lambda x: os.path.getmtime(x))
+        file_list = [file.replace(path, '') for file in files]
 
         return file_list
 

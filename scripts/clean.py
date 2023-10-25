@@ -6,11 +6,18 @@ from libraries.preprocessing import Preprocessing
 from config import Configuration
 import os
 from astropy.io import fits
+import astropy.units as u
+from astropy.coordinates import SkyCoord, EarthLocation, AltAz
+import datetime
+import pytz
 import time
 import numpy as np
 from skimage import io
-from PIL.TiffTags import TAGS
 from PIL import Image
+import logging
+logging.getLogger("PIL").setLevel(logging.WARNING)
+
+
 class Clean:
 
     @staticmethod
@@ -29,11 +36,16 @@ class Clean:
 
         # get the file list
         Utils.log("Getting file list...", "info")
-        files = Utils.get_file_list(Configuration.RAW_DIRECTORY, Configuration.FILE_EXTENSION)
+        if Configuration.COADDED == 'Y':
+            img_dir = Configuration.COADD_DIRECTORY
+        else:
+            img_dir = Configuration.RAW_DIRECTORY
+
+        files = Utils.get_file_list(img_dir, Configuration.FILE_EXTENSION)
 
         # break if there are no files
         if len(files) == 0:
-            Utils.log("No .fits files found in " + Configuration.RAW_DIRECTORY + ". Breaking...", "debug")
+            Utils.log("No .fits files found in " + img_dir + ". Breaking...", "debug")
             return()
         
         Utils.log("Starting to clean " + str(len(files)) + " images.", "info")
@@ -52,8 +64,8 @@ class Clean:
             if os.path.isfile(Configuration.CLEAN_DIRECTORY + file_name) == 0:
 
                 # clean the image
-                clean_img, header, bd_flag = Clean.clean_img(file, Configuration.RAW_DIRECTORY, sky_subtract,
-                                                             bias_subtract, flat_divide, alignment, dark_subtract)
+                clean_img, header, bd_flag = Clean.calibrate_img(file, img_dir, sky_subtract,
+                                                                 bias_subtract, flat_divide, alignment, dark_subtract)
 
                 # write out the file
                 if bd_flag == 0:
@@ -61,8 +73,8 @@ class Clean:
                                  clean_img, header, overwrite=True)
 
                     # print an update to the cleaning process
-                    Utils.log("Cleaned image written as " +
-                              Configuration.CLEAN_DIRECTORY + file_name + ".", "info")
+                    # Utils.log("Cleaned image written as " +
+                    #          Configuration.CLEAN_DIRECTORY + file_name + ".", "info")
                 else:
                     Utils.log(file_name + " is a bad image. Not written.", "info")
 
@@ -72,101 +84,78 @@ class Clean:
         Utils.log("Imaging cleaning complete in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
 
     @staticmethod
-    def clean_img(file, ref_path, sky_subtract="N", bias_subtract='N',
-                  flat_divide='N', alignment='N', dark_subtract="N"):
+    def calibrate_img(file, ref_path, sky_subtract='N', bias_subtract='N', flat_divide='N', dark_subtract="N"):
         """ This function is the primary script to clean the image, various other functions found in this class
         can be found in the various libraries imported.
 
         :parameter  file - The file name of the image you would like to clean
         :parameter ref_path - The path to the reference frame
-        :parameter sky_subtract - Y/N if you want to subtract the sky from the image (default = Y)
+        :parameter sky_subtract - Y/N if you want to do the global sky subtraction
         :parameter bias_subtract - Y/N if you want to remove a bias frame (default = N)
         :parameter flat_divide - Y/N if you want to flatten the image (default = N)
-        :parameter alignment - Y/N if you want to align the image (default = N)
         :parameter dark_subtract -Y/N if you want to subtract the dark frame (default = N)
         """
 
-        Utils.log("Now cleaning " + file + ".", "info")
+        # Utils.log("Now cleaning " + file + ".", "info")
 
         # read in the image
         if Configuration.FILE_EXTENSION == '.fits':
             img, header = fits.getdata(ref_path + file, 0, header=True)
         else:
             img = io.imread(ref_path + file)
-            # with Image.open(Configuration.RAW_DIRECTORY + file) as img:
-            #    timestampBOF = 4157647121
-            #    timestampResNs = 11200
-            #    finaltimestamp = 4157647121 * 11200
-            #    meta_dict = {TAGS[key]: img.tag[key] for key in img.tag.iterkeys()}
-            # print('hold')
+
+            # generate the header with the time stamp, exposure, and airmass
+            header = fits.PrimaryHDU().header
+
+            # time stamp
+            dte = datetime.datetime.fromtimestamp(os.path.getmtime(ref_path + file))
+            local = pytz.timezone("America/Chicago")
+            local_dte = local.localize(dte, is_dst=Configuration.DST)
+            utc_dte = local_dte.astimezone(pytz.utc)
+            if Configuration.MONTH != 'July':
+                header['DATE-OBS'] = str(utc_dte)
+            else:
+                header['DATE-OBS'] = str(dte)
+
+            # airmass
+            observatory = EarthLocation(lat=Configuration.OBS_LAT * u.deg,
+                                        lon=Configuration.OBS_LON * u.deg,
+                                        height=Configuration.OBS_HGT * u.m)
+            obj_coord = SkyCoord(ra=Configuration.RA * u.deg,
+                                 dec=Configuration.DEC * u.deg,
+                                 frame='icrs')
+            obj_altaz = obj_coord.transform_to(AltAz(obstime=utc_dte, location=observatory))
+            header['AIRMASS'] = np.around(obj_altaz.secz.value, decimals=6)
+
+            # exposure
+            with Image.open(ref_path + file) as img_head:
+
+                header['HIERARCH EXPOSURE TIME'] = int(''.join(filter(lambda x: x.isdigit(),
+                                                                      img_head.tag_v2[270].
+                                                                      split("\n")[5].split("=")[1]))) / 1000
+            header['CO-ADD'] = 1
         if np.ndim(img) > 2:
             img = img[0]
 
         # bias subtract if necessary
         if bias_subtract == 'Y':
-            st = time.time()
-            bias = Preprocessing.mk_bias(Configuration.BIAS_DIRECTORY, dark='N', combine_type='median')
+            bias = Preprocessing.mk_bias(Configuration.BIAS_DIRECTORY, dark='N', combine_type=Configuration.BIAS_TYPE)
             img, header = Preprocessing.bias_subtract(img, header, dark='N')
-            fn = time.time()
-            Utils.log("Image bias corrected in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
-        else:
-            Utils.log("Skipping bias correction....", "info")
 
         # dark subtract if necessary
         if dark_subtract == 'Y':
-            st = time.time()
             dark = Preprocessing.mk_bias(Configuration.DARKS_DIRECTORY, dark='Y', combine_type='median')
             img, header = Preprocessing.bias_subtract(img, header, dark='Y')
-            fn = time.time()
-            Utils.log("Image dark corrected in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
-        else:
-            Utils.log("Skipping dark correction....", "info")
 
         # flat divide if necessary
         if flat_divide == 'Y':
-            st = time.time()
             flat = Preprocessing.mk_flat(Configuration.FLATS_DIRECTORY)
             img, header = Preprocessing.flat_divide(img, header)
-            fn = time.time()
-            Utils.log("Image flattened in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
-        else:
-            Utils.log("Skipping image flattening....", "info")
 
-        if Configuration.CUT_IMAGE == 'Y':
-            Utils.log("Clipping the image from " + str(Configuration.AXS_X) + "x" + str(Configuration.AXS_Y) + " to " +
-                      str(Configuration.AXIS_X) + "x" + str(Configuration.AXIS_Y), "info")
-            img, header = Preprocessing.remove_overscan(img, header)
-        else:
-            header['CLIPPED'] = 'N'
-            Utils.log("Skipping image clipping...", "info")
-
-        # sky subtract if necessary
         if sky_subtract == 'Y':
-            st = time.time()
-            # the background sample size is set to pix x pix pixels, and bxs x bxs sub images
-            # this should not be hard coded...update for later
+            img, header = Preprocessing.sky_subtract(img, header, sky_write='Y')
 
-            Utils.log("A background box of " + str(Configuration.PIX) + " x " + str(Configuration.PIX) +
-                      " will be used for background subtraction.", "info")
-
-            img, header = Preprocessing.sky_subtract(img, header, Configuration.WRITE_SKY)
-            fn = time.time()
-            Utils.log("Sky subtracted in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
-
-        if sky_subtract == 'N':
-            Utils.log("Skipping sky subtraction...", "info")
-
-        # align the image if necessary
-        if alignment == 'Y':
-            st = time.time()
-            img, header = Preprocessing.align_img(img, header, ref_path)
-            fn = time.time()
-            Utils.log("Image aligned in " + str(np.around((fn - st), decimals=2)) + "s.", "info")
-
-        if alignment == 'N':
-            Utils.log("Skipping image alignment....", "info")
-
-        Utils.log("Cleaning finished.", "info")
+        # Utils.log("Cleaning finished.", "info")
         bd_flag = 0
 
         return img, header, bd_flag

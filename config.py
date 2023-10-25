@@ -4,65 +4,84 @@
 class Configuration:
 
     # Computer for reduction
-    MACHINE = 'barristan'
+    MACHINE = 'karl'
+
+    # observatory information
+    OBS_LAT = 30.6797
+    OBS_LON = -104.0247
+    OBS_HGT = 2077
 
     # calibration steps to skip
-    BIAS_SUBTRACT = 'Y'
-    DARK_SUBTRACT = 'N'
+    BIAS_SUBTRACT = 'N'
+    BIAS_TYPE = 'coadd'
     FLAT_DIVIDE = 'N'
-    SKY_SUBTRACT = 'Y'
     ALIGNMENT = 'N'
+    CENTROID = 'Y'
     CUT_IMAGE = 'N'
-    NUM_MASTER_FILES = 100
 
-    # major steps to skip
-    CLEAN_SKIP = 'Y'
-    WRITE_SKY = 'N'
-    PHOTOMETRY_SKIP = 'N'
-    LIGHTCURVE_SKIP = 'Y'
-    COLOR_SKIP = 'Y'
-    BKG_FULL_REMOVE = 'Y'
+    # pipeline choice
+    COADD_IMAGE = 'Y'
+    COADDED = 'Y'
+    CLEAN = 'N'
+    MAKE_MASTER = 'N'
+    PSF_PHOTOMETRY = 'N'
+    PER_BAND = 'N'
+    BAND = 'aper_2'
 
-    # stellar parameters
-    STAR = 'XO-1'
-    DATE = '2022-06-17'
-    MONTH = 'June'
-    MASTER_TYPE = 'normal'
-    RA = 213.1438604
-    DEC = 47.0147826
-    TC = 2455696.93695
-    PERIOD = 4.301219
+    # background subtraction
+    SKY_SUBTRACT = 'none'
 
-    # observation & image specific parameters
-    EXPOSURE_TIME = 10.
+    # file information
+    STAR = 'BL-LAC'  #
+    DATE = '2023-09-27'  #
+    MONTH = 'Sep'  #
+    YEAR = 2023
+    RA = 330.6803750
+    DEC = 42.2777722
+    EXPOSURE_TIME = 10
+    EXPOSURE_COADD = 1
+    BIN_NUM = 1.
+    BIN_TIME = 300.
+    DST = 'Y'  # is it daylight savings time? Also, make sure you are in Chicago time!
+
+    # image information
     AXIS_X = 2048
     AXIS_Y = 2048
-    AXS_X = 2048
-    AXS_Y = 2048
-    PIX = 128
     GAIN = 0.61  # in e-/ADU
     FILE_EXTENSION = '.fits'
-
-    # photometry parameters
-    PHOTOMETRY = 'PSF'
-    APERTURE_SHAPE = 'ellipse'
-    TIME = 'phase'
     BEAM_TYPE = 'transmission'
+
+    # background subtraction
+    PIX = 256
 
     # rough size of PSF for star finding and clip functions, also avoidance for edge
     SIGMA_PSF = 10
     PSF_THRESHOLD = 500
-    PSF_X = 40
-    PSF_Y = 25
-    PSF_CUTOUT = 80
+    if BEAM_TYPE == 'transmission':
+        PSF_X = 35
+        PSF_Y = 15
+        PSF_CUTOUT = 80
+
+        # aperture information
+        ELIP_APER_A = 35
+        ELIP_APER_B = 15
+        SKY_POS_ABV = 60
+        SKY_POS_BLW = 60
+
+    else:
+        PSF_X = 30
+        PSF_Y = 10
+        PSF_CUTOUT = 130
+
+        # aperture information
+        ELIP_APER_A = 30
+        ELIP_APER_B = 10
+        SKY_POS_ABV = 60
+        SKY_POS_BLW = 60
 
     # a photometry configuration
     FWHM = 10.  # fwhm of the image
     THRESHOLD = 5.  # the threshold for a source above the background
-
-    # aperture information
-    ELIP_APER_A = 40
-    ELIP_APER_B = 25
 
     # aperture annulus for the sky background automatically determined from the main aperture
     ELIP_ANNULI_A0 = ELIP_APER_A + 2
@@ -72,31 +91,13 @@ class Configuration:
 
     # PSF information (transmitted band passes)
     NUM_PSF_TRANSMISSION = 8
-    PSF1_TRANSMISSION = 0
-    PSF2_TRANSMISSION = PSF1_TRANSMISSION + 80
-    PSF3_TRANSMISSION = PSF1_TRANSMISSION + 160
-    PSF4_TRANSMISSION = PSF1_TRANSMISSION + 250
-    PSF5_TRANSMISSION = PSF1_TRANSMISSION + 340
-    PSF6_TRANSMISSION = PSF1_TRANSMISSION + 430
-    PSF7_TRANSMISSION = PSF1_TRANSMISSION + 530
-    PSF8_TRANSMISSION = PSF1_TRANSMISSION + 630
-    PSFS_TRANSMISSION = [PSF1_TRANSMISSION, PSF2_TRANSMISSION, PSF3_TRANSMISSION, PSF4_TRANSMISSION,
-                         PSF5_TRANSMISSION, PSF6_TRANSMISSION, PSF7_TRANSMISSION, PSF8_TRANSMISSION]
-    WAVELENGTHS_TRANSMISSION = ['937nm', '763nm', '660nm', '587nm', '533nm', '494nm', '467nm', '435nm']
-    WAVELENGTHS_TRANSMISSION_NUMS = [937, 763, 660, 587, 533, 494, 467, 435]
+    WAVELENGTHS_TRANSMISSION = ['937nm', '763nm', '660nm', '587nm', '553nm', '494nm', '467nm', '435nm']
+    WAVELENGTHS_TRANSMISSION_NUMS = [937, 763, 660, 587, 553, 494, 467, 435]
+
     # PSF information (reflected band passes)
     NUM_PSF_REFLECTION = 7
-    PSF1_REFLECTION = 0
-    PSF2_REFLECTION = PSF1_REFLECTION + 85
-    PSF3_REFLECTION = PSF1_REFLECTION + 170
-    PSF4_REFLECTION = PSF1_REFLECTION + 255
-    PSF5_REFLECTION = PSF1_REFLECTION + 340
-    PSF6_REFLECTION = PSF1_REFLECTION + 425
-    PSF7_REFLECTION = PSF1_REFLECTION + 510
-
-    PSFS_REFLECTION = [PSF1_REFLECTION, PSF2_REFLECTION, PSF3_REFLECTION, PSF4_REFLECTION,
-                       PSF5_REFLECTION, PSF6_REFLECTION, PSF7_REFLECTION]
-    WAVELENGTHS_REFLECTION = ['448nm', '476nm', '512nm', '559nm', '620nm', '713nm', '873nm']
+    WAVELENGTHS_REFLECTION = ['873nm', '713nm', '620nm', '559nm', '512nm', '476nm', '448nm']
+    WAVELENGTHS_REFLECTION_NUMS = [873, 713, 620, 559, 512, 476, 448]
 
     if BEAM_TYPE == 'transmission':
         NUM_PSF = NUM_PSF_TRANSMISSION
@@ -110,8 +111,35 @@ class Configuration:
     QUERIES_DIRECTORY = WORKING_DIRECTORY + 'queries\\'
 
     # input paths for data etc
-    DATA_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
-    CALIBRATION_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\"
+    if MONTH == 'April':
+        if YEAR == 2022:
+            DATA_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\"
+        else:
+            DATA_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\"
+    elif MONTH == 'May':
+            DATA_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\"
+    elif (MONTH == 'Sep') | (MONTH == 'Oct'):
+        if YEAR == '2022':
+            DATA_DIRECTORY = "D:\\" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "D:\\" + MONTH + "2022\\" + DATE + "\\"
+        else:
+            DATA_DIRECTORY = "I:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "I:\\" + MONTH + "2023\\" + DATE + "\\"
+    elif MONTH == 'June':
+        if YEAR == 2022:
+            DATA_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\"
+        else:
+            DATA_DIRECTORY = "G:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            CALIBRATION_DIRECTORY = "G:\\" + MONTH + "2023\\" + DATE + "\\"
+    elif MONTH == 'July':
+        DATA_DIRECTORY = "G:\\" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+        CALIBRATION_DIRECTORY = "G:\\" + MONTH + "2022\\" + DATE + "\\"
+    else:
+        print('Warning no month with data!')
 
     # directories to be generated in the reduction
     DARKS_DIRECTORY = CALIBRATION_DIRECTORY + "darks\\"
@@ -121,9 +149,11 @@ class Configuration:
     COADD_DIRECTORY = RAW_DIRECTORY + "coadd\\"
     CLEAN_DIRECTORY = DATA_DIRECTORY + "clean\\"
     LIGHTCURVE_DIRECTORY = DATA_DIRECTORY + "lc\\"
+    LIGHTCURVE_BAND_DIRECTORY = LIGHTCURVE_DIRECTORY + "band\\"
     MASTER_DIRECTORY = DATA_DIRECTORY + "master\\"
 
     # directory_list
     DIRECTORIES = [ANALYSIS_DIRECTORY, DATA_DIRECTORY, LOG_DIRECTORY,
-                   QUERIES_DIRECTORY, CLEAN_DIRECTORY, LIGHTCURVE_DIRECTORY, COADD_DIRECTORY,
-                   RAW_DIRECTORY, FLATS_DIRECTORY, BIAS_DIRECTORY, DARKS_DIRECTORY, MASTER_DIRECTORY]
+                   QUERIES_DIRECTORY, CLEAN_DIRECTORY, LIGHTCURVE_DIRECTORY,
+                   LIGHTCURVE_BAND_DIRECTORY, COADD_DIRECTORY, RAW_DIRECTORY,
+                   FLATS_DIRECTORY, BIAS_DIRECTORY, DARKS_DIRECTORY, MASTER_DIRECTORY]
