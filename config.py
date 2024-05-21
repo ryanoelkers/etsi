@@ -20,7 +20,7 @@ class Configuration:
     CUT_IMAGE = 'N'
 
     # pipeline choice
-    COADD_IMAGE = 'Y'
+    COADD_IMAGE = 'N'
     COADDED = 'Y'
     CLEAN = 'N'
     MAKE_MASTER = 'N'
@@ -32,16 +32,16 @@ class Configuration:
     SKY_SUBTRACT = 'none'
 
     # file information
-    STAR = 'BL-LAC'  #
-    DATE = '2023-09-27'  #
-    MONTH = 'Sep'  #
-    YEAR = 2023
-    RA = 330.6803750
-    DEC = 42.2777722
-    EXPOSURE_TIME = 10
-    EXPOSURE_COADD = 1
+    STAR = 'HAT-P-32b'  #
+    DATE = '2022-10-04'  #
+    MONTH = 'Oct'  #
+    YEAR = 2022
+    RA = 31.0428229
+    DEC = 46.6878361
+    EXPOSURE_TIME = 3
+    EXPOSURE_COADD = 0
     BIN_NUM = 1.
-    BIN_TIME = 300.
+    BIN_TIME = 60.
     DST = 'Y'  # is it daylight savings time? Also, make sure you are in Chicago time!
 
     # image information
@@ -63,10 +63,10 @@ class Configuration:
         PSF_CUTOUT = 80
 
         # aperture information
-        ELIP_APER_A = 35
-        ELIP_APER_B = 15
-        SKY_POS_ABV = 60
-        SKY_POS_BLW = 60
+        ELIP_APER_A = 40
+        ELIP_APER_B = 25
+        SKY_POS_ABV = 100
+        SKY_POS_BLW = 100
 
     else:
         PSF_X = 30
@@ -74,8 +74,8 @@ class Configuration:
         PSF_CUTOUT = 130
 
         # aperture information
-        ELIP_APER_A = 30
-        ELIP_APER_B = 10
+        ELIP_APER_A = 65
+        ELIP_APER_B = 30
         SKY_POS_ABV = 60
         SKY_POS_BLW = 60
 
@@ -122,7 +122,7 @@ class Configuration:
             DATA_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
             CALIBRATION_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\"
     elif (MONTH == 'Sep') | (MONTH == 'Oct'):
-        if YEAR == '2022':
+        if YEAR == 2022:
             DATA_DIRECTORY = "D:\\" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
             CALIBRATION_DIRECTORY = "D:\\" + MONTH + "2022\\" + DATE + "\\"
         else:

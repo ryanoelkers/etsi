@@ -292,8 +292,8 @@ class Photometry:
         positions_abv['y'] = positions_abv['y'] + Configuration.SKY_POS_ABV
         positions_blw['y'] = positions_blw['y'] - Configuration.SKY_POS_BLW
 
-        pos_hold = positions.append(positions_abv).reset_index(drop=True)
-        position = pos_hold.append(positions_blw).reset_index(drop=True)
+        poss_hold = pd.concat([positions, positions_abv]).reset_index(drop=True)
+        position = pd.concat([poss_hold, positions_blw]).reset_index(drop=True)
 
         # set up the apertures for the photometry
         aperture = EllipticalAperture(position,
@@ -495,7 +495,7 @@ class Photometry:
                     focus = np.mean([header_coadd['FOCUSS'], header_coadd['FOCUSE']])
                     pressure = np.mean([header_coadd['PRESSS'], header_coadd['PRESSE']])
                     temperature = np.mean([header_coadd['TEMPS'], header_coadd['TEMPE']])
-                    dome =  0 # np.mean([header_coadd['DOMES'], header_coadd['DOMEE']])
+                    dome = 0  # np.mean([header_coadd['DOMES'], header_coadd['DOMEE']])
                     zenith = np.mean([header_coadd['ZENITHS'], header_coadd['ZENITHE']])
                     azimuth = np.mean([header_coadd['AZIMS'], header_coadd['AZIME']])
                 else:
@@ -542,16 +542,18 @@ class Photometry:
 
             # get the updated PSF by forcing the position and get the new centroids
             if Configuration.ALIGNMENT == 'Y':
-                star_list_start = Preprocessing.calibrate_to_start(ref_img, img, og_star_list, prv_list)
+                star_list_start, bd_flag = Preprocessing.calibrate_to_start(ref_img, img, og_star_list, prv_list)
             else:
                 star_list_start = prv_list.copy().reset_index(drop=True)
-
+                bd_flag = 0
             # get the updated centroids
             if Configuration.CENTROID == 'Y':
                 star_list = Photometry.centroid_positions(img, star_list_start)
             else:
                 star_list = star_list_start.copy().reset_index(drop=True)
+
             prv_list = star_list.copy().reset_index(drop=True)
+            #ref_img = img
 
             aper_mag, aper_er, sum_aper_mag, sum_aper_er, aper_x, aper_y, aper_bkg, aper_max = \
                 Photometry.aperture_photometry(img, header, star_list,

@@ -112,10 +112,10 @@ class Clean:
             local = pytz.timezone("America/Chicago")
             local_dte = local.localize(dte, is_dst=Configuration.DST)
             utc_dte = local_dte.astimezone(pytz.utc)
-            if Configuration.MONTH != 'July':
-                header['DATE-OBS'] = str(utc_dte)
-            else:
-                header['DATE-OBS'] = str(dte)
+            # if Configuration.MONTH != 'July':
+            header['DATE-OBS'] = str(utc_dte)
+            # else:
+            #     header['DATE-OBS'] = str(dte)
 
             # airmass
             observatory = EarthLocation(lat=Configuration.OBS_LAT * u.deg,

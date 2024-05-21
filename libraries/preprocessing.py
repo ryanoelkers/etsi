@@ -26,7 +26,7 @@ class Preprocessing:
         :parameter og_list - The list of the OG pixel positions
         :parameter pv_list - The previous list of positions
 
-        :return star_list - The updated star positions based on the first frame's data
+        :return star_list, flag - The updated star positions based on the first frame's data and if the transform worked
         """
 
         # set up the coordinate list for the new image
@@ -42,19 +42,20 @@ class Preprocessing:
         # set up the image transformation
         try:
             # get the transformation offset between the frames
-            img_transf, (i0_list, i1_list) = aa.find_transform(img0, img, max_control_points=5,
-                                                               detection_sigma=50, min_area=200)
+            img_transf, (i0_list, i1_list) = aa.find_transform(img0-np.nanmedian(img0), img-np.nanmedian(img),
+                                                               max_control_points=3,
+                                                               detection_sigma=10)#, min_area=500)
             img_calc = aa.matrix_transform(src, img_transf.params)
 
             # update the star list with the positions
             star_list['x'] = img_calc[:, 0]
             star_list['y'] = img_calc[:, 1]
 
-            return star_list
+            return star_list, 0
         except aa.MaxIterError:
-            return pv_list
+            return pv_list, 1
         except ValueError:
-            return pv_list
+            return pv_list, 1
 
     @staticmethod
     def mk_bias(image_directory, dark="N", combine_type='median'):

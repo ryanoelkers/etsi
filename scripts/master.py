@@ -205,7 +205,7 @@ class Master:
 
             if coadd_flag == 0:
                 # here is the 'holder'
-                hold_data = np.ndarray(shape=(Configuration.AXIS_X, Configuration.AXIS_Y))
+                hold_data = np.zeros(shape=(Configuration.AXIS_X, Configuration.AXIS_Y))
                 idx_cnt = 0
                 img_exp = 0
 

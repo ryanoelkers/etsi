@@ -1,25 +1,6 @@
-2023-10-24 15:38:46,698 - INFO: Generating co-adds and PSF for BL-LAC
-2023-10-24 15:38:46,709 - INFO: Generating co-add frames from multiple files. There are 426 images to co-add.
-2023-10-24 15:38:46,709 - INFO: Making co-add file 0. There are 426 left for co-adds.
-2023-10-24 15:38:47,717 - INFO: Co-add #0 generated.
-2023-10-24 15:38:48,750 - INFO: Co-add #1 generated.
-2023-10-24 15:38:49,732 - INFO: Co-add #2 generated.
-2023-10-24 15:38:49,970 - INFO: Making co-add file 3. There are 326 left for co-adds.
-2023-10-24 15:38:50,646 - INFO: Co-add #3 generated.
-2023-10-24 15:38:51,575 - INFO: Co-add #4 generated.
-2023-10-24 15:38:52,474 - INFO: Co-add #5 generated.
-2023-10-24 15:38:52,876 - INFO: Making co-add file 6. There are 226 left for co-adds.
-2023-10-24 15:38:53,298 - INFO: Co-add #6 generated.
-2023-10-24 15:38:54,089 - INFO: Co-add #7 generated.
-2023-10-24 15:38:54,888 - INFO: Co-add #8 generated.
-2023-10-24 15:38:55,682 - INFO: Co-add #9 generated.
-2023-10-24 15:38:55,683 - INFO: Making co-add file 10. There are 126 left for co-adds.
-2023-10-24 15:38:56,495 - INFO: Co-add #10 generated.
-2023-10-24 15:38:57,301 - INFO: Co-add #11 generated.
-2023-10-24 15:38:58,114 - INFO: Co-add #12 generated.
-2023-10-24 15:38:58,312 - INFO: Making co-add file 13. There are 26 left for co-adds.
-2023-10-24 15:38:58,920 - INFO: Co-add #13 generated.
-2023-10-24 15:38:59,267 - INFO: Co-add #14 generated.
-2023-10-24 15:38:59,268 - INFO: Starting Photometry for BL-LAC
-2023-10-24 15:38:59,269 - INFO: Performing PSF and Aperture photometry on BL-LAC images.
-2023-10-24 15:39:02,028 - INFO: All done! See ya later, alligator.
+2024-05-07 17:10:56,830 - INFO: Generating co-adds and PSF for HAT-P-32b
+2024-05-07 17:10:56,830 - INFO: Skipping co-adds.
+2024-05-07 17:10:56,830 - INFO: Starting Photometry for HAT-P-32b
+2024-05-07 17:10:56,830 - INFO: Performing PSF and Aperture photometry on HAT-P-32b images.
+2024-05-07 17:11:33,982 - INFO: Completed photometry for 100 images for star HAT-P-32b. 92 images remain.
+2024-05-07 17:12:07,235 - INFO: All done! See ya later, alligator.
