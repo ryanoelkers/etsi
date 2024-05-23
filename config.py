@@ -65,29 +65,29 @@ class Configuration:
         WVE_STR = WAVELENGTHS_REFLECTION
 
     # output paths for logging, temporary files, figures etc
-    WORKING_DIRECTORY = "C:\\Users\\barristan\\Development\\etsi\\"
+    WORKING_DIRECTORY = "\\etsi\\"
     LOG_DIRECTORY = WORKING_DIRECTORY + 'logs\\'
 
     # input paths for data etc
     if MONTH == 'April':
         if YEAR == 2022:
-            DATA_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
         else:
-            DATA_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
     elif MONTH == 'May':
-            DATA_DIRECTORY = "D:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
     elif (MONTH == 'Sep') | (MONTH == 'Oct'):
         if YEAR == 2022:
-            DATA_DIRECTORY = "D:\\" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
         else:
-            DATA_DIRECTORY = "I:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
     elif MONTH == 'June':
         if YEAR == 2022:
-            DATA_DIRECTORY = "F:\\ETSI_" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
         else:
-            DATA_DIRECTORY = "G:\\" + MONTH + "2023\\" + DATE + "\\" + STAR + "\\"
+            DATA_DIRECTORY = ""
     elif MONTH == 'July':
-        DATA_DIRECTORY = "G:\\" + MONTH + "2022\\" + DATE + "\\" + STAR + "\\"
+        DATA_DIRECTORY = ""
     else:
         print('Warning no month with data!')
 
