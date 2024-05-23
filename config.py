@@ -66,9 +66,7 @@ class Configuration:
 
     # output paths for logging, temporary files, figures etc
     WORKING_DIRECTORY = "C:\\Users\\barristan\\Development\\etsi\\"
-    ANALYSIS_DIRECTORY = WORKING_DIRECTORY + 'analysis\\'
     LOG_DIRECTORY = WORKING_DIRECTORY + 'logs\\'
-    QUERIES_DIRECTORY = WORKING_DIRECTORY + 'queries\\'
 
     # input paths for data etc
     if MONTH == 'April':
@@ -101,6 +99,6 @@ class Configuration:
     MISC_DIRECTORY = DATA_DIRECTORY + "misc\\"
 
     # directory_list
-    DIRECTORIES = [ANALYSIS_DIRECTORY, DATA_DIRECTORY, LOG_DIRECTORY,
-                   QUERIES_DIRECTORY, LIGHTCURVE_DIRECTORY, RAW_DIRECTORY, MISC_DIRECTORY,
+    DIRECTORIES = [DATA_DIRECTORY, LOG_DIRECTORY,
+                   LIGHTCURVE_DIRECTORY, RAW_DIRECTORY, MISC_DIRECTORY,
                    COADD_DIRECTORY, COADD_BEAM_DIRECTORY]
