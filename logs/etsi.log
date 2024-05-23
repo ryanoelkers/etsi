@@ -1,6 +1,6 @@
-2024-05-07 17:10:56,830 - INFO: Generating co-adds and PSF for HAT-P-32b
-2024-05-07 17:10:56,830 - INFO: Skipping co-adds.
-2024-05-07 17:10:56,830 - INFO: Starting Photometry for HAT-P-32b
-2024-05-07 17:10:56,830 - INFO: Performing PSF and Aperture photometry on HAT-P-32b images.
-2024-05-07 17:11:33,982 - INFO: Completed photometry for 100 images for star HAT-P-32b. 92 images remain.
-2024-05-07 17:12:07,235 - INFO: All done! See ya later, alligator.
+2024-05-23 16:49:49,016 - INFO: Generating co-adds for HAT-P-44b
+2024-05-23 16:49:49,016 - INFO: You marked 'N' in the configuration file. No co-adds will be generated.
+2024-05-23 16:49:49,016 - INFO: Starting Photometry for HAT-P-44b
+2024-05-23 16:49:49,016 - INFO: Performing Aperture photometry on HAT-P-44b images.
+2024-05-23 16:50:02,638 - INFO: Completed photometry for 100 images for star HAT-P-44b. 58 images remain.
+2024-05-23 16:50:10,113 - INFO: All done! See ya later, alligator.
